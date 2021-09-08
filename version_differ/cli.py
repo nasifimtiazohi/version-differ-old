@@ -1,10 +1,7 @@
 """Console script for version_differ."""
 import argparse
 import sys
-from version_differ import get_stats
-
-
-ecosystems = ["Cargo", "Composer", "Go", "Maven", "npm", "NuGet", "pip", "RubyGems"]
+from version_differ import get_stats, ecosystems
 
 
 def main():
