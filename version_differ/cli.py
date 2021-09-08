@@ -1,17 +1,24 @@
 """Console script for version_differ."""
 import argparse
 import sys
+from version_differ import get_stats
+
+
+ecosystems = ["Cargo", "Composer", "Go", "Maven", "npm", "NuGet", "pip", "RubyGems"]
 
 
 def main():
     """Console script for version_differ."""
     parser = argparse.ArgumentParser()
-    parser.add_argument('_', nargs='*')
+
+    parser.add_argument("ecosystem", choices=ecosystems, help="package registry")
+    parser.add_argument("package", type=str, help="package name")
+    parser.add_argument("old", type=str, help="old version")
+    parser.add_argument("new", type=str, help="new version")
+
     args = parser.parse_args()
 
-    print("Arguments: " + str(args._))
-    print("Replace this message by putting your code into "
-          "version_differ.cli.main")
+    get_stats(args.ecosystem, args.package, args.old, args.new)
     return 0
 
 
