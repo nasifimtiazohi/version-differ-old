@@ -80,7 +80,6 @@ def download_zipped(url, path):
 def download_tar(url, path):
     # download content in a zipped format
     dest_file = "{}/temp_data.tar.gz".format(path)
-
     r = requests.get(url)
     with open(dest_file, "wb") as output_file:
         output_file.write(r.content)
@@ -104,9 +103,34 @@ def download_tar(url, path):
 
 def download_package_source(ecosystem, package, version, dir_path):
     url = get_package_version_source_url(ecosystem, package, version)
-    if ecosystem == COMPOSER or ecosystem == NUGET or ecosystem == MAVEN:
+    print(
+        "fetching {}-{} in {} ecosystem from {}".format(
+            package, version, ecosystem, url
+        )
+    )
+    # First try based on file extension
+    if (
+        url.endswith(".whl")
+        or url.endswith(".jar")
+        or url.endswith(".nupkg")
+        or url.endswith(".zip")
+    ):
         download_zipped(url, dir_path)
-    elif ecosystem == NPM or ecosystem == PIP or ecosystem == RUBYGEMS:
+    elif (
+        url.endswith(".gz")
+        or url.endswith(".crate")
+        or url.endswith(".gem")
+        or url.endswith(".tgz")
+    ):
+        download_tar(url, dir_path)
+    elif ecosystem == COMPOSER or ecosystem == NUGET or ecosystem == MAVEN:
+        download_zipped(url, dir_path)
+    elif (
+        ecosystem == NPM
+        or ecosystem == PIP
+        or ecosystem == RUBYGEMS
+        or ecosystem == CARGO
+    ):
         download_tar(url, dir_path)
     else:
         # TODO Go
@@ -158,15 +182,19 @@ def get_package_version_source_url(ecosystem, package, version):
                 return url
         return None
 
+
 def init_git_repo(path):
     repo = init_repository(path)
     index = repo.index
     index.add_all()
-    index.write() # is this line necessary?
+    index.write()  # is this line necessary?
     tree = index.write_tree()
-    sig1 = Signature('user', 'email@domain.com', int(time()), 0)
-    oid = repo.create_commit('refs/heads/master', sig1, sig1, 'Initial commit', tree, [])
+    sig1 = Signature("user", "email@domain.com", int(time()), 0)
+    oid = repo.create_commit(
+        "refs/heads/master", sig1, sig1, "Initial commit", tree, []
+    )
     return repo, oid
+
 
 def setup_remote(repo, url):
     remote_name = "remote"
@@ -175,12 +203,14 @@ def setup_remote(repo, url):
     remote.connect()
     remote.fetch()
 
+
 def get_diff_stats(repo_path, commit_a, commit_b):
     files = {}
-    
-    for commit in pydriller.Repository(repo_path, from_commit = commit_a,
-        to_commit = commit_b, only_no_merge= True).traverse_commits():
-        
+
+    for commit in pydriller.Repository(
+        repo_path, from_commit=commit_a, to_commit=commit_b, only_no_merge=True
+    ).traverse_commits():
+
         for m in commit.modified_files:
             file = m.new_path
             if not file:
@@ -188,20 +218,9 @@ def get_diff_stats(repo_path, commit_a, commit_b):
             assert file
 
             if file not in files:
-                files[file] = {
-                    'loc_added' : 0,
-                    'loc_removed': 0
-                }
+                files[file] = {"loc_added": 0, "loc_removed": 0}
 
-            files[file]['loc_added'] += m.added_lines
-            files[file]['loc_removed'] += m.deleted_lines
-        
+            files[file]["loc_added"] += m.added_lines
+            files[file]["loc_removed"] += m.deleted_lines
+
     return files
-
-
-
-
-
-    
-
-

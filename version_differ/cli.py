@@ -1,7 +1,7 @@
 """Console script for version_differ."""
 import argparse
 import sys
-from version_differ import get_stats, ecosystems
+from version_differ import *
 
 
 def main():
@@ -15,7 +15,7 @@ def main():
 
     args = parser.parse_args()
 
-    get_stats(args.ecosystem, args.package, args.old, args.new)
+    print(len(get_version_diff_stats(args.ecosystem, args.package, args.old, args.new)))
     return 0
 
 
