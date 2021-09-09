@@ -67,9 +67,23 @@ def test_download():
     download_package_source(NPM, "lodash", "4.11.1", dir)
     # TODO 1. make tempdir, assert file count
 
-
+@pytest.mark.skip(reason="needs TODO")
 def test_init_git_repo():
-    repo_a, oid_a = init_git_repo("/Users/nasifimtiaz/repos/version_differ/tests/resources/repo_a")
-    repo_b, oid_b = init_git_repo("/Users/nasifimtiaz/repos/version_differ/tests/resources/repo_b")
-    print(oid_a, oid_b)
-    setup_remote(repo_a, "/Users/nasifimtiaz/repos/version_differ/tests/resources/repo_b")
+    # TODO: do it in temp file
+    dir_a = "/Users/nasifimtiaz/repos/version_differ/tests/resources/repo_a"
+    dir_b = "/Users/nasifimtiaz/repos/version_differ/tests/resources/repo_b"
+    repo_a, oid_a = init_git_repo(dir_a)
+    repo_b, oid_b = init_git_repo(dir_b)
+    setup_remote(repo_a, dir_b)
+
+    diff = get_diff_stats(dir_a, oid_a, oid_b)
+    print(diff)
+
+def test_version_diff_stats():
+    assert len(get_version_diff_stats(NPM, "lodash", "4.11.1", "4.11.0")) == 943
+    assert len(get_version_diff_stats(RUBYGEMS, "bundler", "2.2.27", "2.2.26")) == 299
+    assert len(get_version_diff_stats(MAVEN, "com.github.junrar:junrar", "1.0.1", "1.0.0")) == 89
+    assert len(get_version_diff_stats(NUGET, "Serilog", "2.10.0","2.9.0")) == 19
+    assert len(get_version_diff_stats(COMPOSER, "psr/log", "2.0.0", "1.1.4")) == 25
+    assert len(get_version_diff_stats(PIP, "meinheld", "1.0.2", "1.0.1")) == 112
+
