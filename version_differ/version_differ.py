@@ -12,6 +12,8 @@ import json
 import os
 from zipfile import ZipFile
 import tarfile
+from pygit2 import Repository, init_repository, Signature
+from time import time
 
 
 CARGO = "Cargo"
@@ -143,3 +145,25 @@ def get_package_version_source_url(ecosystem, package, version):
             if requests.get(url).status_code == 200:
                 return url
         return None
+
+def init_git_repo(path):
+    repo = init_repository(path)
+    index = repo.index
+    index.add_all()
+    index.write() # is this line necessary?
+    tree = index.write_tree()
+    sig1 = Signature('user', 'email@domain.com', int(time()), 0)
+    oid = repo.create_commit('refs/heads/master', sig1, sig1, 'Initial commit', tree, [])
+    return repo, oid
+
+def setup_remote(repo, url):
+    remote_name = "remote"
+    repo.create_remote(remote_name, url)
+    remote = repo.remotes[remote_name]
+    remote.connect()
+    remote.fetch()
+
+
+    
+
+

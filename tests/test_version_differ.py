@@ -66,3 +66,10 @@ def test_download():
     download_package_source(PIP, "Django", "3.2.7", dir)
     download_package_source(NPM, "lodash", "4.11.1", dir)
     # TODO 1. make tempdir, assert file count
+
+
+def test_init_git_repo():
+    repo_a, oid_a = init_git_repo("/Users/nasifimtiaz/repos/version_differ/tests/resources/repo_a")
+    repo_b, oid_b = init_git_repo("/Users/nasifimtiaz/repos/version_differ/tests/resources/repo_b")
+    print(oid_a, oid_b)
+    setup_remote(repo_a, "/Users/nasifimtiaz/repos/version_differ/tests/resources/repo_b")
