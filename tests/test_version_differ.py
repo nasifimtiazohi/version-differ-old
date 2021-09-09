@@ -58,7 +58,7 @@ def test_src_download_url():
 
 @pytest.mark.skip(reason="needs TODO")
 def test_download():
-    dir = "/Users/nasifimtiaz/repos/version_differ/hello/"
+    dir = "/Users/nasifimtiaz/repos/version_differ/tests/resources/temp"
     download_package_source(COMPOSER, "psr/log", "2.0.0", dir)
     download_package_source(NUGET, "Serilog", "2.10.0", dir)
     download_package_source(MAVEN, "com.github.junrar:junrar", "1.0.1", dir)
