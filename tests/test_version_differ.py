@@ -25,7 +25,7 @@ def test_content(response):
     # assert 'GitHub' in BeautifulSoup(response.content).title.string
 
 
-def test_always_passes():
+def test_src_download_url():
     assert (
         get_package_version_source_url(CARGO, "depdive", "0.1.0")
         == "https://crates.io/api/v1/crates/depdive/0.1.0/download"
