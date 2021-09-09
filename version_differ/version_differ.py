@@ -7,7 +7,12 @@
 4. get git diff
 """
 
-import requests, json
+import requests
+import json
+import os
+from zipfile import ZipFile
+import tarfile
+
 
 CARGO = "Cargo"
 COMPOSER = "Composer"
@@ -38,6 +43,60 @@ def get_maven_pacakge_url(package):
         return url
     else:
         return None
+
+
+def download_zipped(url, path):
+    # download content in a zipped format
+    dest_file = "{}/temp_data.zip".format(path)
+
+    r = requests.get(url, stream=True)
+    with open(dest_file, "wb") as output_file:
+        output_file.write(r.content)
+
+    z = ZipFile(dest_file, "r")
+    z.extractall(path)
+    z.close()
+
+    os.remove(dest_file)
+
+    return dest_file
+
+
+def download_tar(url, path):
+    # download content in a zipped format
+    dest_file = "{}/temp_data.tar.gz".format(path)
+
+    r = requests.get(url)
+    with open(dest_file, "wb") as output_file:
+        output_file.write(r.content)
+
+    flag = True
+    while flag:
+        flag = False
+        for root, dirs, files in os.walk(path):
+            for file in files:
+                print(file)
+                if file.endswith("tar.gz"):
+                    filepath = "{}/{}".format(root, file)
+                    flag = True
+                    # extract the tar file and delete itself
+                    t = tarfile.open(filepath)
+                    t.extractall(path)
+                    t.close()
+                    os.remove(filepath)
+
+    return dest_file
+
+
+def download_package_source(ecosystem, package, version, dir_path):
+    url = get_package_version_source_url(ecosystem, package, version)
+    if ecosystem == COMPOSER or ecosystem == NUGET or ecosystem == MAVEN:
+        download_zipped(url, dir_path)
+    elif ecosystem == NPM or ecosystem == PIP or ecosystem == RUBYGEMS:
+        download_tar(url, dir_path)
+    else:
+        # TODO Go
+        pass
 
 
 def get_package_version_source_url(ecosystem, package, version):

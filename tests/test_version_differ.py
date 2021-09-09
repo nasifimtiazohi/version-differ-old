@@ -54,3 +54,15 @@ def test_src_download_url():
         get_package_version_source_url(MAVEN, "io.spray:spray-httpx", "1.2.3")
         == "https://repo1.maven.org/maven2/io/spray/spray-httpx/1.2.3/spray-httpx-1.2.3-sources.jar"
     )
+
+
+@pytest.mark.skip(reason="needs TODO")
+def test_download():
+    dir = "/Users/nasifimtiaz/repos/version_differ/hello/"
+    download_package_source(COMPOSER, "psr/log", "2.0.0", dir)
+    download_package_source(NUGET, "Serilog", "2.10.0", dir)
+    download_package_source(MAVEN, "com.github.junrar:junrar", "1.0.1", dir)
+    download_package_source(RUBYGEMS, "bundler", "2.2.27", dir)
+    download_package_source(PIP, "Django", "3.2.7", dir)
+    download_package_source(NPM, "lodash", "4.11.1", dir)
+    # TODO 1. make tempdir, assert file count
