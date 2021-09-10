@@ -32,10 +32,14 @@ ecosystems = [CARGO, COMPOSER, GO, MAVEN, NPM, NUGET, PIP, RUBYGEMS]
 
 def get_version_diff_stats(ecosystem, package, old, new):
     temp_dir_old = tempfile.TemporaryDirectory()
-    download_package_source(ecosystem, package, old, temp_dir_old.name)
+    url = get_package_version_source_url(ecosystem, package, old)
+    if url:
+        download_package_source(url, ecosystem, package, old, temp_dir_old.name)
 
     temp_dir_new = tempfile.TemporaryDirectory()
-    download_package_source(ecosystem, package, new, temp_dir_new.name)
+    url = get_package_version_source_url(ecosystem, package, new)
+    if url:
+        download_package_source(url, ecosystem, package, new, temp_dir_new.name)
 
     repo_old, oid_old = init_git_repo(temp_dir_old.name)
     repo_new, oid_new = init_git_repo(temp_dir_new.name)
@@ -93,6 +97,7 @@ def download_tar(url, path):
         for root, dirs, files in os.walk(path):
             for file in files:
                 if file.endswith("tar.gz"):
+                    print(file)
                     filepath = "{}/{}".format(root, file)
                     flag = True
                     # extract the tar file and delete itself
@@ -104,8 +109,7 @@ def download_tar(url, path):
     return dest_file
 
 
-def download_package_source(ecosystem, package, version, dir_path):
-    url = get_package_version_source_url(ecosystem, package, version)
+def download_package_source(url, ecosystem, package, version, dir_path):
     print(
         "fetching {}-{} in {} ecosystem from {}".format(
             package, version, ecosystem, url

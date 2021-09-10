@@ -87,3 +87,4 @@ def test_version_diff_stats():
     assert len(get_version_diff_stats(COMPOSER, "psr/log", "2.0.0", "1.1.4")) == 25
     assert len(get_version_diff_stats(PIP, "meinheld", "1.0.2", "1.0.1")) == 112
 
+
