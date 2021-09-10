@@ -42,9 +42,12 @@ def get_version_diff_stats(ecosystem, package, old, new):
 
     setup_remote(repo_old, temp_dir_new.name)
 
-    return get_diff_stats(temp_dir_old.name, oid_old, oid_new)
+    stats = get_diff_stats(temp_dir_old.name, oid_old, oid_new)
 
-
+    temp_dir_old.cleanup()
+    temp_dir_new.cleanup()
+    return stats 
+    
 def get_maven_pacakge_url(package):
     url = "https://repo1.maven.org/maven2/" + package.replace(".", "/").replace(
         ":", "/"
