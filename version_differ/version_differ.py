@@ -151,6 +151,8 @@ def get_package_version_source_url(ecosystem, package, version):
         data = json.loads(page.content)
         data = data["package"]["versions"]
         for key in data.keys():
+            if key.startswith('v'):
+                key = key[1:]
             if key == version:
                 return data[key]["dist"]["url"]
         return None
@@ -160,6 +162,8 @@ def get_package_version_source_url(ecosystem, package, version):
         data = json.loads(page.content)
         data = data["versions"]
         for key in data.keys():
+            if key.startswith('v'):
+                key = key[1:]
             if key == version:
                 return data[key]["dist"]["tarball"]
         return None
@@ -169,6 +173,8 @@ def get_package_version_source_url(ecosystem, package, version):
         data = json.loads(page.content)
         data = data["releases"]
         for key in data.keys():
+            if key.startswith('v'):
+                key = key[1:]
             if key == version:
                 return data[key][-1]["url"]
         return None
