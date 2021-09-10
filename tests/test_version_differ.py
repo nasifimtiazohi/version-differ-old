@@ -102,3 +102,17 @@ def test_head_commit_for_tag():
     assert get_commit_of_release(tags, package, "10.0.8").hexsha == '51efd612af12183a682bb3242d41369d2879ad60'
     assert get_commit_of_release(tags, package, "10.0.8-") is None
     assert get_commit_of_release(tags, "hakari", "0.3.0").hexsha == '946ddf053582067b843c19f1270fe92eaa0a7cb3' 
+
+def test_go_module_path():
+    assert get_go_module_path("github.com/keybase/client/go/chat/attachments") == "go/chat/attachments"
+    assert get_go_module_path("github.com/lightningnetwork/lnd") is None
+    assert get_go_module_path("github.com/istio/istio/pilot/pkg/proxy/envoy/v2") == "pilot/pkg/proxy/envoy/v2"
+
+
+def test_go_version_diff_stats():
+    assert len(go_get_version_diff_stats(
+        "github.com/keybase/client/go/chat/attachments", 
+        "https://github.com/keybase/client", "5.5.2", "5.6.0")) == 1
+
+    assert len(go_get_version_diff_stats("github.com/crewjam/saml","https://github.com/crewjam/saml",
+        "0.4.2", "0.4.3")) == 10

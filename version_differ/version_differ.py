@@ -104,6 +104,12 @@ def get_commit_of_release(tags, package, version):
         return output_tag.commit
     return None
 
+def get_go_module_path(package):
+    parts = package.split('/')
+    if len(parts) <= 3:
+        return None
+    else:
+        return '/'.join(parts[3:])
 
 def go_get_version_diff_stats(package, repo_url, old, new):
     if "github.com" not in repo_url:
@@ -111,11 +117,20 @@ def go_get_version_diff_stats(package, repo_url, old, new):
     url = sanitize_repo_url(repo_url)
 
     temp_dir = tempfile.TemporaryDirectory()
-    clone_repository(url, temp_dir)
-
-    repo = Repo(temp_dir)
-    assert not repo.bare 
+    repo = Repo.clone_from(url, temp_dir.name)
     tags = repo.tags
+
+    old_commit = get_commit_of_release(tags, package, old)
+    new_commit = get_commit_of_release(tags, package, new)
+
+    files = get_diff_stats(temp_dir.name, old_commit, new_commit)
+    module_path = get_go_module_path(package)
+    if module_path:
+        files = {k: v for (k,v) in files.items() if k.startswith(module_path)}
+
+    temp_dir.cleanup()
+    return files
+
 
 
 
