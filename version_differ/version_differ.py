@@ -12,10 +12,11 @@ import json
 import os
 from zipfile import ZipFile
 import tarfile
-from pygit2 import Repository, init_repository, Signature
+from pygit2 import Repository, clone_repository, init_repository, Signature
 from time import time
 import pydriller
 import tempfile
+from git import Repo
 
 
 CARGO = "Cargo"
@@ -28,6 +29,94 @@ PIP = "pip"
 RUBYGEMS = "RubyGems"
 
 ecosystems = [CARGO, COMPOSER, GO, MAVEN, NPM, NUGET, PIP, RUBYGEMS]
+
+def sanitize_repo_url(repo_url):
+    http = 'https://'
+    assert repo_url.startswith(http)
+    
+    s='https://gitbox.apache.org/repos/asf?p='
+    url = repo_url
+    if url.startswith(s):
+        url = url[len(s):]
+        assert url.count('.git') == 1
+        url = url[:url.find('.git')]
+        return 'https://gitbox.apache.org/repos/asf/'+url
+
+    
+    s = repo_url[len(http):]
+
+    #custom
+    if s.startswith('svn.opensymphony.com'):
+        return repo_url
+
+    #below rule covers github, gitlab, bitbucket, foocode, eday, qt
+    sources = ['github', 'gitlab', 'bitbucket', 'foocode', 'eday', 'q', 'opendev']
+    flag = False
+    for source in sources:
+        if source in s:
+            flag = True
+    assert flag
+
+    if s.endswith('.git'):
+        s=s[:-len('.git')]
+    s = http + '/'.join(s.split('/')[:3])
+
+    return s
+
+def get_commit_of_release(tags, package, release):
+    '''tags is a gitpython object, while release is a string taken from ecosystem data'''
+    release = release.strip()
+    release_tag = None #store return value
+    candidate_tags = []
+    for tag in tags:
+        if tag.name.strip().endswith(release):
+            candidate_tags.append(tag)
+    if not candidate_tags:
+        for tag in tags:
+            if tag.name.strip().endswith(release.replace('.','-')) or tag.name.strip().endswith(release.replace('.','_')):
+                candidate_tags.append(tag)  
+    
+    if len(candidate_tags) == 1:
+        release_tag = candidate_tags[0]
+    elif len(candidate_tags) > 1:
+        new_candidates = []
+        for tag in candidate_tags:
+            if package in tag.name:
+                new_candidates.append(tag)
+        candidate_tags = new_candidates
+    
+    if not release_tag:
+        if len(candidate_tags) == 1:
+            release_tag = candidate_tags[0]
+        elif len(candidate_tags) > 1:
+            print('too many candidate tags')
+            logging.info(candidate_tags)
+            exit()
+        else:
+            #in previous pass there were too many candidate tags, e.g., 2.4.3 , v2.4.3
+            #not considering them to be fully sure
+            pass      
+
+    if release_tag:
+        return release_tag.commit
+    return None
+
+def go_get_version_diff_stats(package, repo_url, old, new):
+    if "github.com" not in repo_url:
+        raise Exception("repository not github url")
+    url = sanitize_repo_url(repo_url)
+
+    temp_dir = tempfile.TemporaryDirectory()
+    clone_repository(url, temp_dir)
+
+    repo = Repo(temp_dir)
+    assert not repo.bare 
+    tags = repo.tags
+
+
+
+
+
 
 
 def get_version_diff_stats(ecosystem, package, old, new):
@@ -97,14 +186,20 @@ def download_tar(url, path):
         for root, dirs, files in os.walk(path):
             for file in files:
                 if file.endswith("tar.gz"):
-                    print(file)
                     filepath = "{}/{}".format(root, file)
-                    flag = True
-                    # extract the tar file and delete itself
-                    t = tarfile.open(filepath)
-                    t.extractall(path)
-                    t.close()
-                    os.remove(filepath)
+                    try:
+                        # extract the tar file and delete itself
+                        t = tarfile.open(filepath)
+                        t.extractall(path)
+                        t.close()
+                        os.remove(filepath)
+                        flag = True
+                    except:
+                        if file == 'temp_data.tar.gz' or file == 'data.tar.gz':
+                            raise Exception("cannot extract the main tar")
+                        else:
+                            # don't bother
+                            pass
 
     return dest_file
 
