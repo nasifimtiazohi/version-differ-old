@@ -4,6 +4,8 @@
 
 from requests import NullHandler
 import pytest
+import tempfile
+from git import Repo
 
 
 from version_differ.version_differ import *
@@ -87,4 +89,16 @@ def test_version_diff_stats():
     assert len(get_version_diff_stats(COMPOSER, "psr/log", "2.0.0", "1.1.4")) == 25
     assert len(get_version_diff_stats(PIP, "meinheld", "1.0.2", "1.0.1")) == 112
 
+def test_head_commit_for_tag():
+    temp_dir = tempfile.TemporaryDirectory()
+    url = "https://github.com/nasifimtiazohi/test-version-tag"
+    package = "test"
+    clone_repository(url, temp_dir.name)
+    
+    repo = Repo(temp_dir.name)
+    tags = repo.tags
 
+    assert get_commit_of_release(tags, package, "0.0.8") is None
+    assert get_commit_of_release(tags, package, "10.0.8").hexsha == '51efd612af12183a682bb3242d41369d2879ad60'
+    assert get_commit_of_release(tags, package, "10.0.8-") is None
+    assert get_commit_of_release(tags, "hakari", "0.3.0").hexsha == '946ddf053582067b843c19f1270fe92eaa0a7cb3' 

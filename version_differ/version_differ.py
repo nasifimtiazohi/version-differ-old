@@ -17,6 +17,7 @@ from time import time
 import pydriller
 import tempfile
 from git import Repo
+import re
 
 
 CARGO = "Cargo"
@@ -34,6 +35,7 @@ def sanitize_repo_url(repo_url):
     http = 'https://'
     assert repo_url.startswith(http)
     
+    # gitbox urls
     s='https://gitbox.apache.org/repos/asf?p='
     url = repo_url
     if url.startswith(s):
@@ -63,43 +65,45 @@ def sanitize_repo_url(repo_url):
 
     return s
 
-def get_commit_of_release(tags, package, release):
+def get_commit_of_release(tags, package, version):
     '''tags is a gitpython object, while release is a string taken from ecosystem data'''
-    release = release.strip()
-    release_tag = None #store return value
-    candidate_tags = []
-    for tag in tags:
-        if tag.name.strip().endswith(release):
-            candidate_tags.append(tag)
-    if not candidate_tags:
-        for tag in tags:
-            if tag.name.strip().endswith(release.replace('.','-')) or tag.name.strip().endswith(release.replace('.','_')):
-                candidate_tags.append(tag)  
-    
-    if len(candidate_tags) == 1:
-        release_tag = candidate_tags[0]
-    elif len(candidate_tags) > 1:
-        new_candidates = []
-        for tag in candidate_tags:
-            if package in tag.name:
-                new_candidates.append(tag)
-        candidate_tags = new_candidates
-    
-    if not release_tag:
-        if len(candidate_tags) == 1:
-            release_tag = candidate_tags[0]
-        elif len(candidate_tags) > 1:
-            print('too many candidate tags')
-            logging.info(candidate_tags)
-            exit()
-        else:
-            #in previous pass there were too many candidate tags, e.g., 2.4.3 , v2.4.3
-            #not considering them to be fully sure
-            pass      
+    version = version.strip()
+    output_tag = None
+    candidate_tags = tags
 
-    if release_tag:
-        return release_tag.commit
+    # Now we check through a series of heuristics if tag matches a version
+    version_formatted_for_regex = version.replace(".", "\\.")
+    patterns = [
+        # 1. Ensure the version part does not follow any digit between 1-9,
+        # e.g., to distinguish betn 0.1.8 vs 10.1.8
+        r"^(?:.*[^1-9])?{}$".format(version_formatted_for_regex),
+
+        # 2. If still more than one candidate,
+        # check the extistence of crate name
+        r"^.*{}(?:.*[^1-9])?{}$".format(package, version_formatted_for_regex),
+
+        # 3. check if  and only if crate name and version string is present
+        # besides non-alphanumeric, e.g., to distinguish guppy vs guppy-summaries
+        r"^.*{}\W*{}$".format(package, version_formatted_for_regex)
+    ]
+
+    for pattern in patterns:
+        if output_tag:
+            break
+
+        pattern = re.compile(pattern)
+        temp = []
+        for tag in candidate_tags:
+            if pattern.match(tag.name.strip()):
+                temp.append(tag)
+        candidate_tags = temp
+        if len(candidate_tags) == 1:
+            output_tag = candidate_tags[0]
+    
+    if output_tag:
+        return output_tag.commit
     return None
+
 
 def go_get_version_diff_stats(package, repo_url, old, new):
     if "github.com" not in repo_url:
