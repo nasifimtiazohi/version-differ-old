@@ -12,12 +12,17 @@ import json
 import os
 from zipfile import ZipFile
 import tarfile
-from pygit2 import Repository, clone_repository, init_repository, Signature
+from pygit2 import Repository, clone_repository, init_repository, Signature, repository
 from time import time
 import pydriller
 import tempfile
-from git import Repo
+from git import Repo, Git
 import re
+from pprint import pprint
+import subprocess, shlex
+from unidiff import PatchSet
+
+from io import StringIO
 
 
 CARGO = "Cargo"
@@ -111,7 +116,7 @@ def get_go_module_path(package):
     else:
         return '/'.join(parts[3:])
 
-def go_get_version_diff_stats(package, repo_url, old, new):
+def get_version_diff_stats_from_repository_tags(package, repo_url, old, new):
     if "github.com" not in repo_url:
         raise Exception("repository not github url")
     url = sanitize_repo_url(repo_url)
@@ -124,11 +129,23 @@ def go_get_version_diff_stats(package, repo_url, old, new):
     new_commit = get_commit_of_release(tags, package, new)
 
     files = get_diff_stats(temp_dir.name, old_commit, new_commit)
+
+    temp_dir.cleanup()
+    return files
+
+def go_get_version_diff_stats(package, repo_url, old, new):
+    files = get_version_diff_stats_from_repository_tags(package, repo_url, old, new)
     module_path = get_go_module_path(package)
     if module_path:
         files = {k: v for (k,v) in files.items() if k.startswith(module_path)}
+    return files
 
-    temp_dir.cleanup()
+
+def get_version_diff_stats(ecosystem, package, repo_url, old, new):
+    if ecosystem == GO:
+        files = go_get_version_diff_stats(package, repo_url, old, new)
+    else:
+        files = get_version_diff_stats_registry(ecosystem, package, old, new)
     return files
 
 
@@ -136,25 +153,25 @@ def go_get_version_diff_stats(package, repo_url, old, new):
 
 
 
-
-
-def get_version_diff_stats(ecosystem, package, old, new):
+def get_version_diff_stats_registry(ecosystem, package, old, new):
     temp_dir_old = tempfile.TemporaryDirectory()
     url = get_package_version_source_url(ecosystem, package, old)
     if url:
-        download_package_source(url, ecosystem, package, old, temp_dir_old.name)
+        old_path = download_package_source(url, ecosystem, package, old, temp_dir_old.name)
 
     temp_dir_new = tempfile.TemporaryDirectory()
     url = get_package_version_source_url(ecosystem, package, new)
     if url:
-        download_package_source(url, ecosystem, package, new, temp_dir_new.name)
+        new_path = download_package_source(url, ecosystem, package, new, temp_dir_new.name)
 
-    repo_old, oid_old = init_git_repo(temp_dir_old.name)
-    repo_new, oid_new = init_git_repo(temp_dir_new.name)
+    print(old_path, new_path)
 
-    setup_remote(repo_old, temp_dir_new.name)
+    repo_old, oid_old = init_git_repo(old_path)
+    repo_new, oid_new = init_git_repo(new_path)
 
-    stats = get_diff_stats(temp_dir_old.name, oid_old, oid_new)
+    setup_remote(repo_old, new_path)
+
+    stats = get_diff_stats(old_path, oid_old, oid_new)
 
     temp_dir_old.cleanup()
     temp_dir_new.cleanup()
@@ -177,7 +194,8 @@ def get_maven_pacakge_url(package):
 
 def download_zipped(url, path):
     # download content in a zipped format
-    dest_file = "{}/temp_data.zip".format(path)
+    compressed_file_name = "temp_data.zip"
+    dest_file = "{}/{}".format(path, compressed_file_name)
 
     r = requests.get(url, stream=True)
     with open(dest_file, "wb") as output_file:
@@ -189,12 +207,12 @@ def download_zipped(url, path):
 
     os.remove(dest_file)
 
-    return dest_file
 
 
 def download_tar(url, path):
     # download content in a zipped format
-    dest_file = "{}/temp_data.tar.gz".format(path)
+    compressed_file_name = "temp_data.tar.gz"
+    dest_file = "{}/{}".format(path, compressed_file_name)
     r = requests.get(url)
     with open(dest_file, "wb") as output_file:
         output_file.write(r.content)
@@ -220,7 +238,8 @@ def download_tar(url, path):
                             # don't bother
                             pass
 
-    return dest_file
+
+    os.remove(dest_file)
 
 
 def download_package_source(url, ecosystem, package, version, dir_path):
@@ -243,7 +262,7 @@ def download_package_source(url, ecosystem, package, version, dir_path):
         or url.endswith(".gem")
         or url.endswith(".tgz")
     ):
-        download_tar(url, dir_path)
+       download_tar(url, dir_path)
     elif ecosystem == COMPOSER or ecosystem == NUGET or ecosystem == MAVEN:
         download_zipped(url, dir_path)
     elif (
@@ -254,8 +273,18 @@ def download_package_source(url, ecosystem, package, version, dir_path):
     ):
         download_tar(url, dir_path)
     else:
-        # TODO Go
-        pass
+        # do nothing
+        None 
+    
+    if ecosystem == COMPOSER:
+        files = os.listdir(dir_path)
+        assert len(files) == 1
+        path = "{}/{}".format(dir_path, files[0])
+    elif ecosystem == MAVEN:
+        path = dir_path
+    else:
+        files = os.listdir(dir_path)
+    return path
 
 
 def get_package_version_source_url(ecosystem, package, version):
@@ -317,7 +346,6 @@ def init_git_repo(path):
     repo = init_repository(path)
     index = repo.index
     index.add_all()
-    index.write()  # is this line necessary?
     tree = index.write_tree()
     sig1 = Signature("user", "email@domain.com", int(time()), 0)
     oid = repo.create_commit(
@@ -334,7 +362,7 @@ def setup_remote(repo, url):
     remote.fetch()
 
 
-def get_diff_stats(repo_path, commit_a, commit_b):
+def get_diff_stats_from_pydriller(repo_path, commit_a, commit_b):
     files = {}
 
     for commit in pydriller.Repository(
@@ -342,6 +370,9 @@ def get_diff_stats(repo_path, commit_a, commit_b):
     ).traverse_commits():
 
         for m in commit.modified_files:
+            if m.change_type == pydriller.ModificationType.RENAME:
+                continue
+            print(m.new_path, m.added_lines, m.deleted_lines)
             file = m.new_path
             if not file:
                 file = m.old_path
@@ -354,3 +385,37 @@ def get_diff_stats(repo_path, commit_a, commit_b):
             files[file]["loc_removed"] += m.deleted_lines
 
     return files
+
+def get_diff_stats(repo_path, commit_a, commit_b):
+    repository = Repo(repo_path)
+
+    uni_diff_text = repository.git.diff(str(commit_a), str(commit_b),
+                                    ignore_blank_lines=True, 
+                                    ignore_space_at_eol=True)
+    patch_set = PatchSet(uni_diff_text)
+    
+    files = {}
+
+    for patched_file in patch_set:
+        file_path = patched_file.path  # file name
+        
+        del_line_no = [line.target_line_no 
+                    for hunk in patched_file for line in hunk 
+                    if line.is_added and
+                    line.value.strip() != '']  # the row number of deleted lines
+        lines_removed = len(del_line_no)
+        
+        ad_line_no = [line.source_line_no for hunk in patched_file 
+                    for line in hunk if line.is_removed and
+                    line.value.strip() != '']   # the row number of added liens
+        lines_added = len(ad_line_no)
+
+        loc_change = lines_added + lines_removed
+        if loc_change > 0:
+            files[file_path] = {'loc_added': lines_added , 'loc_removed': lines_removed}
+        
+    return files
+
+
+    
+    

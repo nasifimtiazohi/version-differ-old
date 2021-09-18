@@ -3,6 +3,7 @@
 """Tests for `version_differ` package."""
 
 from requests import NullHandler
+from requests.api import get
 import pytest
 import tempfile
 from git import Repo
@@ -81,13 +82,15 @@ def test_init_git_repo():
     diff = get_diff_stats(dir_a, oid_a, oid_b)
     print(diff)
 
-def test_version_diff_stats():
-    assert len(get_version_diff_stats(NPM, "lodash", "4.11.1", "4.11.0")) == 943
-    assert len(get_version_diff_stats(RUBYGEMS, "bundler", "2.2.27", "2.2.26")) == 299
-    assert len(get_version_diff_stats(MAVEN, "com.github.junrar:junrar", "1.0.1", "1.0.0")) == 89
-    assert len(get_version_diff_stats(NUGET, "Serilog", "2.10.0","2.9.0")) == 19
-    assert len(get_version_diff_stats(COMPOSER, "psr/log", "2.0.0", "1.1.4")) == 25
-    assert len(get_version_diff_stats(PIP, "meinheld", "1.0.2", "1.0.1")) == 112
+# def test_version_diff_stats():
+#     test_composer()
+#     test_go()
+    # assert len(get_version_diff_stats(NPM, "lodash", "4.11.1", "4.11.0")) == 943
+    # assert len(get_version_diff_stats(RUBYGEMS, "bundler", "2.2.27", "2.2.26")) == 299
+    # assert len(get_version_diff_stats(MAVEN, "com.github.junrar:junrar", "1.0.1", "1.0.0")) == 89
+    # assert len(get_version_diff_stats(NUGET, "Serilog", "2.10.0","2.9.0")) == 19
+    # assert len(get_version_diff_stats(COMPOSER, "psr/log", "2.0.0", "1.1.4")) == 25
+    # assert len(get_version_diff_stats(PIP, "meinheld", "1.0.2", "1.0.1")) == 112
 
 def test_head_commit_for_tag():
     temp_dir = tempfile.TemporaryDirectory()
@@ -109,10 +112,45 @@ def test_go_module_path():
     assert get_go_module_path("github.com/istio/istio/pilot/pkg/proxy/envoy/v2") == "pilot/pkg/proxy/envoy/v2"
 
 
-def test_go_version_diff_stats():
+def test_go():
     assert len(go_get_version_diff_stats(
         "github.com/keybase/client/go/chat/attachments", 
         "https://github.com/keybase/client", "5.5.2", "5.6.0")) == 1
 
     assert len(go_get_version_diff_stats("github.com/crewjam/saml","https://github.com/crewjam/saml",
         "0.4.2", "0.4.3")) == 10
+    
+def get_files_loc_stat(files):
+    f = len(files)
+    loc = 0
+    for k in files.keys():
+        loc += (files[k]['loc_added'] + files[k]['loc_removed'])
+    return f, loc
+
+def test_composer():
+    assert get_files_loc_stat(
+            get_version_diff_stats(
+            COMPOSER, "psr/log", "https://github.com/php-fig/log",  "1.1.4",  "2.0.0"
+            )
+        ) == (10, 486)
+    
+    assert get_files_loc_stat(
+            get_version_diff_stats(
+            COMPOSER, "illuminate/auth", "https://github.com/illuminate/auth", "4.1.26", "4.1.25"
+            )
+        ) == (6, 199)
+
+def test_maven():
+    assert get_files_loc_stat(
+            get_version_diff_stats(
+            MAVEN, "com.github.junrar:junrar", "https://github.com/junrar/junrar.git", "1.0.1", "1.0.0"
+            )
+        ) == (8, 165)
+    
+    assert get_files_loc_stat(
+            get_version_diff_stats(
+            MAVEN, "org.togglz:togglz-console", "https://github.com/togglz/togglz", "2.9.4", "2.9.3"
+            )
+        ) == (8, 90)
+    
+    
