@@ -142,10 +142,10 @@ def go_get_version_diff_stats(package, repo_url, old, new):
 
 
 def get_version_diff_stats(ecosystem, package, repo_url, old, new):
-    if ecosystem == GO:
+    if ecosystem == GO or ecosystem == NUGET:
         files = go_get_version_diff_stats(package, repo_url, old, new)
     else:
-        files = get_version_diff_stats_registry(ecosystem, package, old, new)
+        files= get_version_diff_stats_registry(ecosystem, package, old, new)
     return files
 
 
@@ -237,9 +237,7 @@ def download_tar(url, path):
                         else:
                             # don't bother
                             pass
-
-
-    os.remove(dest_file)
+    print(os.listdir(path))
 
 
 def download_package_source(url, ecosystem, package, version, dir_path):
@@ -252,7 +250,6 @@ def download_package_source(url, ecosystem, package, version, dir_path):
     if (
         url.endswith(".whl")
         or url.endswith(".jar")
-        or url.endswith(".nupkg")
         or url.endswith(".zip")
     ):
         download_zipped(url, dir_path)
@@ -276,14 +273,22 @@ def download_package_source(url, ecosystem, package, version, dir_path):
         # do nothing
         None 
     
-    if ecosystem == COMPOSER:
+
+    if ecosystem == COMPOSER or ecosystem == NPM or ecosystem == PIP:
         files = os.listdir(dir_path)
         assert len(files) == 1
         path = "{}/{}".format(dir_path, files[0])
     elif ecosystem == MAVEN:
         path = dir_path
+    elif ecosystem == RUBYGEMS:
+        files = os.listdir(dir_path)
+        if len(files) == 1:
+            path = "{}/{}".format(dir_path, files[0])
+        else: 
+            path = dir_path
     else:
         files = os.listdir(dir_path)
+        print(files)
     return path
 
 
@@ -328,8 +333,6 @@ def get_package_version_source_url(ecosystem, package, version):
             if temp == version:
                 return data[key][-1]["url"]
         return None
-    elif ecosystem == NUGET:
-        return "https://www.nuget.org/api/v2/package/{}/{}".format(package, version)
     elif ecosystem == RUBYGEMS:
         return "https://rubygems.org/downloads/{}-{}.gem".format(package, version)
     elif ecosystem == MAVEN:
@@ -393,7 +396,7 @@ def get_diff_stats(repo_path, commit_a, commit_b):
                                     ignore_blank_lines=True, 
                                     ignore_space_at_eol=True)
     patch_set = PatchSet(uni_diff_text)
-    
+
     files = {}
 
     for patched_file in patch_set:

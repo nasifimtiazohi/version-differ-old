@@ -46,10 +46,6 @@ def test_src_download_url():
         == "https://files.pythonhosted.org/packages/59/45/c6fbb3a206df0b7dc3e6e8fae738e042c63d4ddf828c6e1ba10d7417a1d9/Django-3.2.7.tar.gz"
     )
     assert (
-        get_package_version_source_url(NUGET, "Serilog", "2.10.0")
-        == "https://www.nuget.org/api/v2/package/Serilog/2.10.0"
-    )
-    assert (
         get_package_version_source_url(RUBYGEMS, "bundler", "2.2.27")
         == "https://rubygems.org/downloads/bundler-2.2.27.gem"
     )
@@ -63,7 +59,6 @@ def test_src_download_url():
 def test_download():
     dir = "/Users/nasifimtiaz/repos/version_differ/tests/resources/temp"
     download_package_source(COMPOSER, "psr/log", "2.0.0", dir)
-    download_package_source(NUGET, "Serilog", "2.10.0", dir)
     download_package_source(MAVEN, "com.github.junrar:junrar", "1.0.1", dir)
     download_package_source(RUBYGEMS, "bundler", "2.2.27", dir)
     download_package_source(PIP, "Django", "3.2.7", dir)
@@ -81,16 +76,6 @@ def test_init_git_repo():
 
     diff = get_diff_stats(dir_a, oid_a, oid_b)
     print(diff)
-
-# def test_version_diff_stats():
-#     test_composer()
-#     test_go()
-    # assert len(get_version_diff_stats(NPM, "lodash", "4.11.1", "4.11.0")) == 943
-    # assert len(get_version_diff_stats(RUBYGEMS, "bundler", "2.2.27", "2.2.26")) == 299
-    # assert len(get_version_diff_stats(MAVEN, "com.github.junrar:junrar", "1.0.1", "1.0.0")) == 89
-    # assert len(get_version_diff_stats(NUGET, "Serilog", "2.10.0","2.9.0")) == 19
-    # assert len(get_version_diff_stats(COMPOSER, "psr/log", "2.0.0", "1.1.4")) == 25
-    # assert len(get_version_diff_stats(PIP, "meinheld", "1.0.2", "1.0.1")) == 112
 
 def test_head_commit_for_tag():
     temp_dir = tempfile.TemporaryDirectory()
@@ -153,4 +138,28 @@ def test_maven():
             )
         ) == (8, 90)
     
+def test_npm():
+    assert get_files_loc_stat(
+        get_version_diff_stats(NPM, "lodash", "https://github.com/lodash/lodash", "4.11.1", "4.11.0")) == (12,98)
     
+    
+    assert get_files_loc_stat(
+        get_version_diff_stats(NPM, "set-value", "https://github.com/jonschlinkert/set-value", "3.0.0", "3.0.1")) == (4,48)
+    
+    # print(get_version_diff_stats(NPM, "property-expr","https://github.com/jquense/expr", "2.0.2", "2.0.3"))
+
+def test_nuget():
+    print(get_files_loc_stat(
+        get_version_diff_stats(NUGET, "messagepack.immutablecollection", "https://github.com/neuecc/MessagePack-CSharp",  "2.1.80","2.0.335")
+    ))
+
+def test_pip():
+    assert get_files_loc_stat(
+        get_version_diff_stats(PIP, "meinheld", "asdasd", "1.0.2", "1.0.1")) == (43, 12469)
+
+def test_rubygems():
+    assert get_files_loc_stat(
+        get_version_diff_stats(
+            RUBYGEMS, "yard", "https://github.com/lsegal/yard", "0.9.20", "0.9.19"
+        )) == (10, 3402)
+
