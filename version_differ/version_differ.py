@@ -164,8 +164,6 @@ def get_version_diff_stats_registry(ecosystem, package, old, new):
     if url:
         new_path = download_package_source(url, ecosystem, package, new, temp_dir_new.name)
 
-    print(old_path, new_path)
-
     repo_old, oid_old = init_git_repo(old_path)
     repo_new, oid_new = init_git_repo(new_path)
 
@@ -237,7 +235,7 @@ def download_tar(url, path):
                         else:
                             # don't bother
                             pass
-    print(os.listdir(path))
+
 
 
 def download_package_source(url, ecosystem, package, version, dir_path):
@@ -274,7 +272,7 @@ def download_package_source(url, ecosystem, package, version, dir_path):
         None 
     
 
-    if ecosystem == COMPOSER or ecosystem == NPM or ecosystem == PIP:
+    if ecosystem == COMPOSER or ecosystem == NPM or ecosystem == PIP or ecosystem == CARGO:
         files = os.listdir(dir_path)
         assert len(files) == 1
         path = "{}/{}".format(dir_path, files[0])
@@ -375,7 +373,6 @@ def get_diff_stats_from_pydriller(repo_path, commit_a, commit_b):
         for m in commit.modified_files:
             if m.change_type == pydriller.ModificationType.RENAME:
                 continue
-            print(m.new_path, m.added_lines, m.deleted_lines)
             file = m.new_path
             if not file:
                 file = m.old_path

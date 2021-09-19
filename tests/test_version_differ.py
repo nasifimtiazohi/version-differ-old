@@ -149,9 +149,9 @@ def test_npm():
     # print(get_version_diff_stats(NPM, "property-expr","https://github.com/jquense/expr", "2.0.2", "2.0.3"))
 
 def test_nuget():
-    print(get_files_loc_stat(
+    assert get_files_loc_stat(
         get_version_diff_stats(NUGET, "messagepack.immutablecollection", "https://github.com/neuecc/MessagePack-CSharp",  "2.1.80","2.0.335")
-    ))
+    ) == (107, 9308)
 
 def test_pip():
     assert get_files_loc_stat(
@@ -162,4 +162,8 @@ def test_rubygems():
         get_version_diff_stats(
             RUBYGEMS, "yard", "https://github.com/lsegal/yard", "0.9.20", "0.9.19"
         )) == (10, 3402)
+    
+def test_cargo():
+    assert get_files_loc_stat(get_version_diff_stats(CARGO, "guppy", "adsd", "0.8.0", "0.9.0")) == (9, 393)
+
 
