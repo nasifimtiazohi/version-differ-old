@@ -158,26 +158,27 @@ def get_version_diff_stats_registry(ecosystem, package, old, new):
     url = get_package_version_source_url(ecosystem, package, old)
     if url:
         old_path = download_package_source(url, ecosystem, package, old, temp_dir_old.name)
+    else:
+        return None
 
     temp_dir_new = tempfile.TemporaryDirectory()
     url = get_package_version_source_url(ecosystem, package, new)
     if url:
         new_path = download_package_source(url, ecosystem, package, new, temp_dir_new.name)
-
-    
-    if old_path and new_path:
-        repo_old, oid_old = init_git_repo(old_path)
-        repo_new, oid_new = init_git_repo(new_path)
-
-        setup_remote(repo_old, new_path)
-
-        stats = get_diff_stats(old_path, oid_old, oid_new)
-
-        temp_dir_old.cleanup()
-        temp_dir_new.cleanup()
-        return stats 
     else:
         return None
+    
+    repo_old, oid_old = init_git_repo(old_path)
+    repo_new, oid_new = init_git_repo(new_path)
+
+    setup_remote(repo_old, new_path)
+
+    stats = get_diff_stats(old_path, oid_old, oid_new)
+
+    temp_dir_old.cleanup()
+    temp_dir_new.cleanup()
+    return stats 
+    
 def get_maven_pacakge_url(package):
     url = "https://repo1.maven.org/maven2/" + package.replace(".", "/").replace(
         ":", "/"
