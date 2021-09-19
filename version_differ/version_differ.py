@@ -164,17 +164,20 @@ def get_version_diff_stats_registry(ecosystem, package, old, new):
     if url:
         new_path = download_package_source(url, ecosystem, package, new, temp_dir_new.name)
 
-    repo_old, oid_old = init_git_repo(old_path)
-    repo_new, oid_new = init_git_repo(new_path)
-
-    setup_remote(repo_old, new_path)
-
-    stats = get_diff_stats(old_path, oid_old, oid_new)
-
-    temp_dir_old.cleanup()
-    temp_dir_new.cleanup()
-    return stats 
     
+    if old_path and new_path:
+        repo_old, oid_old = init_git_repo(old_path)
+        repo_new, oid_new = init_git_repo(new_path)
+
+        setup_remote(repo_old, new_path)
+
+        stats = get_diff_stats(old_path, oid_old, oid_new)
+
+        temp_dir_old.cleanup()
+        temp_dir_new.cleanup()
+        return stats 
+    else:
+        return None
 def get_maven_pacakge_url(package):
     url = "https://repo1.maven.org/maven2/" + package.replace(".", "/").replace(
         ":", "/"
