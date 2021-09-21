@@ -128,10 +128,12 @@ def get_version_diff_stats_from_repository_tags(package, repo_url, old, new):
     old_commit = get_commit_of_release(tags, package, old)
     new_commit = get_commit_of_release(tags, package, new)
 
-    files = get_diff_stats(temp_dir.name, old_commit, new_commit)
-
-    temp_dir.cleanup()
-    return files
+    if old_commit and new_commit:
+        files = get_diff_stats(temp_dir.name, old_commit, new_commit)
+        temp_dir.cleanup()
+        return files
+    else:
+        return None
 
 def go_get_version_diff_stats(package, repo_url, old, new):
     files = get_version_diff_stats_from_repository_tags(package, repo_url, old, new)
@@ -145,7 +147,7 @@ def get_version_diff_stats(ecosystem, package, repo_url, old, new):
     if ecosystem == GO or ecosystem == NUGET:
         files = go_get_version_diff_stats(package, repo_url, old, new)
     else:
-        files = get_version_diff_stats(package, repo_url, old, new)
+        files = get_version_diff_stats_from_repository_tags(package, repo_url, old, new)
         files = filter_files_by_package_name(package, repo_url)
     return files
 
