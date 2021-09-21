@@ -148,14 +148,14 @@ def get_version_diff_stats(ecosystem, package, repo_url, old, new):
         files = go_get_version_diff_stats(package, repo_url, old, new)
     else:
         files = get_version_diff_stats_from_repository_tags(package, repo_url, old, new)
-        files = filter_files_by_package_name(package, repo_url)
+        files = filter_files_by_package_name(package, files)
     return files
 
 def filter_files_by_package_name(package, files):
     filtered = {}
     for file in files.keys():
         split = file.split('/')
-        if file in split:
+        if package in split:
             filtered[file] = files[file]
     if filtered:
         return filtered
