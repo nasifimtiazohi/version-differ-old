@@ -91,6 +91,19 @@ def test_head_commit_for_tag():
     assert get_commit_of_release(tags, package, "10.0.8-") is None
     assert get_commit_of_release(tags, "hakari", "0.3.0").hexsha == '946ddf053582067b843c19f1270fe92eaa0a7cb3' 
 
+
+# def test_temp():
+#     temp_dir = tempfile.TemporaryDirectory()
+#     url = "https://github.com/hashicorp/vault"
+#     package = "github.com/hashicorp/vault/vault"
+#     clone_repository(url, temp_dir.name)
+
+#     repo = Repo(temp_dir.name)
+#     tags = repo.tags
+
+#     print(get_commit_of_release(tags, package, "1.4.3"))
+
+
 def test_go_module_path():
     assert get_go_module_path("github.com/keybase/client/go/chat/attachments") == "go/chat/attachments"
     assert get_go_module_path("github.com/lightningnetwork/lnd") is None
@@ -98,12 +111,13 @@ def test_go_module_path():
 
 
 def test_go():
-    assert len(go_get_version_diff_stats(
-        "github.com/keybase/client/go/chat/attachments", 
-        "https://github.com/keybase/client", "5.5.2", "5.6.0")) == 1
+    assert get_files_loc_stat(
+        go_get_version_diff_stats("github.com/labstack/echo/middleware",
+    "https://github.com/labstack/echo", "4.2.0", "4.1.17")) == (27, 2695)
 
-    assert len(go_get_version_diff_stats("github.com/crewjam/saml","https://github.com/crewjam/saml",
-        "0.4.2", "0.4.3")) == 10
+    assert  get_files_loc_stat(
+        go_get_version_diff_stats("github.com/crewjam/saml","https://github.com/crewjam/saml",
+        "0.4.2", "0.4.3")) == (10, 192)
     
 def get_files_loc_stat(files):
     f = len(files)
@@ -152,6 +166,10 @@ def test_nuget():
     assert get_files_loc_stat(
         get_version_diff_stats(NUGET, "messagepack.immutablecollection", "https://github.com/neuecc/MessagePack-CSharp",  "2.1.80","2.0.335")
     ) == (107, 9308)
+
+    assert get_files_loc_stat(get_version_diff_stats(COMPOSER, "symfony/translation", "https://github.com/symfony/translation", "2.0.17", "2.0.16")) == (1, 26)
+
+
 
 def test_pip():
     assert get_files_loc_stat(
