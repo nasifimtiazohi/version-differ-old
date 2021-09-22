@@ -167,9 +167,13 @@ def test_npm():
 def test_nuget():
     assert get_files_loc_stat(
         get_version_diff_stats(NUGET, "messagepack.immutablecollection", "https://github.com/neuecc/MessagePack-CSharp",  "2.1.80","2.0.335")
-    ) == (107, 9308)
+    ) == (1, 20)
 
-    assert get_files_loc_stat(get_version_diff_stats(COMPOSER, "symfony/translation", "https://github.com/symfony/translation", "2.0.17", "2.0.16")) == (1, 26)
+    assert get_files_loc_stat(
+        get_version_diff_stats(NUGET, "microsoft.aspnetcore.server.kestrel.core", "https://github.com/aspnet/KestrelHttpServer", "2.0.2", "2.0.3")) == (7, 113)
+
+    
+
 
 
 

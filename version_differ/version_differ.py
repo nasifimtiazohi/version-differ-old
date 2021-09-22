@@ -144,26 +144,39 @@ def go_get_version_diff_stats(package, repo_url, old, new):
 
 
 def get_version_diff_stats(ecosystem, package, repo_url, old, new):
-    if ecosystem == GO or ecosystem == NUGET:
+    if ecosystem == GO:
         files = go_get_version_diff_stats(package, repo_url, old, new)
-    else:
+    elif ecosystem == NUGET:
         files = get_version_diff_stats_from_repository_tags(package, repo_url, old, new)
-        files = filter_files_by_package_name(package, files)
-    return files
-
-def filter_files_by_package_name(package, files):
-    filtered = {}
-    for file in files.keys():
-        split = file.split('/')
-        if package in split:
-            filtered[file] = files[file]
-    if filtered:
-        return filtered
-    else:
+        
+        package = package.lower()
+        subpath = None
+        for file in files.keys():
+            file = file.lower().split('/')
+            if package in file:
+                subpath = package
+                break
+            else:
+                for path in file:
+                    if package.endswith(path):
+                        temp = package[:-len(path)]
+                        if temp[-1] == '.':
+                            subpath = path
+                            break
+        if subpath:
+            filtered = {}
+            for file in files.keys():
+                paths = file.lower().split('/')
+                if subpath in paths:
+                    filtered[file] = files[file]
+            files = filtered
+        
         return files
-
-
-
+    else:
+        files = get_version_diff_stats_registry(ecosystem, package, old, new)
+    
+    
+    return files
 
 
 
