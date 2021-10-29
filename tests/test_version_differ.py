@@ -54,22 +54,9 @@ def test_src_download_url():
         == "https://repo1.maven.org/maven2/io/spray/spray-httpx/1.2.3/spray-httpx-1.2.3-sources.jar"
     )
 
-
-@pytest.mark.skip(reason="needs TODO")
-def test_download():
-    dir = "/Users/nasifimtiaz/repos/version_differ/tests/resources/temp"
-    download_package_source(COMPOSER, "psr/log", "2.0.0", dir)
-    download_package_source(MAVEN, "com.github.junrar:junrar", "1.0.1", dir)
-    download_package_source(RUBYGEMS, "bundler", "2.2.27", dir)
-    download_package_source(PIP, "Django", "3.2.7", dir)
-    download_package_source(NPM, "lodash", "4.11.1", dir)
-    # TODO 1. make tempdir, assert file count
-
-@pytest.mark.skip(reason="needs TODO")
 def test_init_git_repo():
-    # TODO: do it in temp file
-    dir_a = "/Users/nasifimtiaz/repos/version_differ/tests/resources/repo_a"
-    dir_b = "/Users/nasifimtiaz/repos/version_differ/tests/resources/repo_b"
+    dir_a = tempfile.TemporaryDirectory().name
+    dir_b = tempfile.TemporaryDirectory().name
     repo_a, oid_a = init_git_repo(dir_a)
     repo_b, oid_b = init_git_repo(dir_b)
     setup_remote(repo_a, dir_b)
@@ -77,7 +64,7 @@ def test_init_git_repo():
     diff = get_diff_stats(dir_a, oid_a, oid_b)
     print(diff)
 
-def test_head_commit_for_tag():
+def test_get_commit_of_release():
     temp_dir = tempfile.TemporaryDirectory()
     url = "https://github.com/nasifimtiazohi/test-version-tag"
     package = "test"
@@ -92,19 +79,7 @@ def test_head_commit_for_tag():
     assert get_commit_of_release(tags, "hakari", "0.3.0").hexsha == '946ddf053582067b843c19f1270fe92eaa0a7cb3' 
 
 
-# def test_temp():
-#     temp_dir = tempfile.TemporaryDirectory()
-#     url = "https://github.com/hashicorp/vault"
-#     package = "github.com/hashicorp/vault/vault"
-#     clone_repository(url, temp_dir.name)
-
-#     repo = Repo(temp_dir.name)
-#     tags = repo.tags
-
-#     print(get_commit_of_release(tags, package, "1.4.3"))
-
-
-def test_go_module_path():
+def test_get_go_module_path():
     assert get_go_module_path("github.com/keybase/client/go/chat/attachments") == "go/chat/attachments"
     assert get_go_module_path("github.com/lightningnetwork/lnd") is None
     assert get_go_module_path("github.com/istio/istio/pilot/pkg/proxy/envoy/v2") == "pilot/pkg/proxy/envoy/v2"
@@ -140,7 +115,6 @@ def test_composer():
         ) == (6, 199)
 
 
-
 def test_maven():
     assert get_files_loc_stat(
             get_version_diff_stats(
@@ -172,10 +146,6 @@ def test_nuget():
     assert get_files_loc_stat(
         get_version_diff_stats(NUGET, "microsoft.aspnetcore.server.kestrel.core", "https://github.com/aspnet/KestrelHttpServer", "2.0.2", "2.0.3")) == (7, 113)
 
-    
-
-
-
 
 def test_pip():
     assert get_files_loc_stat(
@@ -191,3 +161,6 @@ def test_cargo():
     assert get_files_loc_stat(get_version_diff_stats(CARGO, "guppy", "adsd", "0.8.0", "0.9.0")) == (9, 393)
 
 
+def test_sanitize_repo_url():
+    assert sanitize_repo_url('https://github.com/nasifimtiazohi/version-differ/issues/1') == 'https://github.com/nasifimtiazohi/version-differ'
+    assert sanitize_repo_url('https://gitlab.com/gitlab-org/charts/gitlab/-/tree/master/doc/architecture') == 'https://gitlab.com/gitlab-org/charts'

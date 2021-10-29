@@ -1,12 +1,5 @@
 """Main module."""
 
-"""
-1. get file for two versions
-2. setup git repo
-3. add a repo as a remote branch to another 
-4. get git diff
-"""
-
 import requests
 import json
 import os
@@ -21,9 +14,7 @@ import re
 from pprint import pprint
 import subprocess, shlex
 from unidiff import PatchSet
-
 from io import StringIO
-
 
 CARGO = "Cargo"
 COMPOSER = "Composer"
@@ -37,6 +28,8 @@ RUBYGEMS = "RubyGems"
 ecosystems = [CARGO, COMPOSER, GO, MAVEN, NPM, NUGET, PIP, RUBYGEMS]
 
 def sanitize_repo_url(repo_url):
+    '''trim down repo url for a valid git fetch'''
+
     http = 'https://'
     assert repo_url.startswith(http)
     
@@ -48,7 +41,6 @@ def sanitize_repo_url(repo_url):
         assert url.count('.git') == 1
         url = url[:url.find('.git')]
         return 'https://gitbox.apache.org/repos/asf/'+url
-
     
     s = repo_url[len(http):]
 
@@ -71,7 +63,9 @@ def sanitize_repo_url(repo_url):
     return s
 
 def get_commit_of_release(tags, package, version):
-    '''tags is a gitpython object, while release is a string taken from ecosystem data'''
+    '''tags is a gitpython object, 
+    while version is a string taken from ecosystem data'''
+
     version = version.strip()
     output_tag = None
     candidate_tags = tags
@@ -87,7 +81,7 @@ def get_commit_of_release(tags, package, version):
         # check the extistence of crate name
         r"^.*{}(?:.*[^1-9])?{}$".format(package, version_formatted_for_regex),
 
-        # 3. check if  and only if crate name and version string is present
+        # 3. check if and only if crate name and version string is present
         # besides non-alphanumeric, e.g., to distinguish guppy vs guppy-summaries
         r"^.*{}\W*{}$".format(package, version_formatted_for_regex)
     ]
@@ -110,6 +104,7 @@ def get_commit_of_release(tags, package, version):
     return None
 
 def get_go_module_path(package):
+    '''assumotion package name starts with <host>/org/repo'''
     parts = package.split('/')
     if len(parts) <= 3:
         return None
@@ -117,8 +112,6 @@ def get_go_module_path(package):
         return '/'.join(parts[3:])
 
 def get_version_diff_stats_from_repository_tags(package, repo_url, old, new):
-    if "github.com" not in repo_url:
-        raise Exception("repository not github url")
     url = sanitize_repo_url(repo_url)
 
     temp_dir = tempfile.TemporaryDirectory()
@@ -141,7 +134,6 @@ def go_get_version_diff_stats(package, repo_url, old, new):
     if module_path:
         files = {k: v for (k,v) in files.items() if k.startswith(module_path)}
     return files
-
 
 def get_version_diff_stats(ecosystem, package, repo_url, old, new):
     if ecosystem == GO:
@@ -175,10 +167,7 @@ def get_version_diff_stats(ecosystem, package, repo_url, old, new):
     else:
         files = get_version_diff_stats_registry(ecosystem, package, old, new)
     
-    
     return files
-
-
 
 def get_version_diff_stats_registry(ecosystem, package, old, new):
     temp_dir_old = tempfile.TemporaryDirectory()
@@ -204,6 +193,7 @@ def get_version_diff_stats_registry(ecosystem, package, old, new):
 
     temp_dir_old.cleanup()
     temp_dir_new.cleanup()
+
     return stats 
     
 def get_maven_pacakge_url(package):
@@ -220,7 +210,6 @@ def get_maven_pacakge_url(package):
     else:
         return None
 
-
 def download_zipped(url, path):
     # download content in a zipped format
     compressed_file_name = "temp_data.zip"
@@ -236,10 +225,8 @@ def download_zipped(url, path):
 
     os.remove(dest_file)
 
-
-
 def download_tar(url, path):
-    # download content in a zipped format
+    # download content in a tarball gzip format
     compressed_file_name = "temp_data.tar.gz"
     dest_file = "{}/{}".format(path, compressed_file_name)
     r = requests.get(url)
@@ -261,13 +248,12 @@ def download_tar(url, path):
                         os.remove(filepath)
                         flag = True
                     except:
+                        # in npm, main tar extracts into data.tar.gz
                         if file == 'temp_data.tar.gz' or file == 'data.tar.gz':
                             raise Exception("cannot extract the main tar")
                         else:
                             # don't bother
                             pass
-
-
 
 def download_package_source(url, ecosystem, package, version, dir_path):
     print(
@@ -289,7 +275,7 @@ def download_package_source(url, ecosystem, package, version, dir_path):
         or url.endswith(".tgz")
     ):
        download_tar(url, dir_path)
-    elif ecosystem == COMPOSER or ecosystem == NUGET or ecosystem == MAVEN:
+    elif ecosystem == COMPOSER or ecosystem == MAVEN:
         download_zipped(url, dir_path)
     elif (
         ecosystem == NPM
@@ -317,9 +303,8 @@ def download_package_source(url, ecosystem, package, version, dir_path):
             path = dir_path
     else:
         files = os.listdir(dir_path)
-        print(ecosystem, files)
+        print("check this: ", ecosystem, files)
     return path
-
 
 def get_package_version_source_url(ecosystem, package, version):
     assert ecosystem in ecosystems
@@ -337,7 +322,6 @@ def get_package_version_source_url(ecosystem, package, version):
                 temp =  temp[1:]
             if temp == version:
                 return data[key]["dist"]["url"]
-        return None
     elif ecosystem == NPM:
         url = "https://registry.npmjs.org/{}".format(package)
         page = requests.get(url)
@@ -349,7 +333,6 @@ def get_package_version_source_url(ecosystem, package, version):
                 temp =  temp[1:]
             if temp == version:
                 return data[key]["dist"]["tarball"]
-        return None
     elif ecosystem == PIP:
         url = "https://pypi.org/pypi/{}/json".format(package)
         page = requests.get(url)
@@ -361,7 +344,6 @@ def get_package_version_source_url(ecosystem, package, version):
                 temp =  temp[1:]
             if temp == version:
                 return data[key][-1]["url"]
-        return None
     elif ecosystem == RUBYGEMS:
         return "https://rubygems.org/downloads/{}-{}.gem".format(package, version)
     elif ecosystem == MAVEN:
@@ -371,8 +353,7 @@ def get_package_version_source_url(ecosystem, package, version):
             url = "{}/{}/{}-{}-sources.jar".format(url, version, artifact, version)
             if requests.get(url).status_code == 200:
                 return url
-        return None
-
+    return None
 
 def init_git_repo(path):
     repo = init_repository(path)
