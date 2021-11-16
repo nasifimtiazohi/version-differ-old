@@ -3,6 +3,7 @@
 import requests
 import json
 import os
+import sys
 from zipfile import ZipFile
 import tarfile
 from pygit2 import init_repository, Signature
@@ -48,15 +49,13 @@ def sanitize_repo_url(repo_url):
 
 
 def get_commit_of_release(tags, package, version):
-    """tags is a gitpython object,
-    while version is a string taken from ecosystem data"""
-
-    version = version.strip()
-    output_tag = None
-    candidate_tags = tags
+    """
+    tags: gitpython object,
+    version: string, taken from ecosystem data
+    """
 
     # Now we check through a series of heuristics if tag matches a version
-    version_formatted_for_regex = version.replace(".", "\\.")
+    version_formatted_for_regex = version.strip().replace(".", "\\.")
     patterns = [
         # 1. Ensure the version part does not follow any digit between 1-9,
         # e.g., to distinguish betn 0.1.8 vs 10.1.8
@@ -70,30 +69,16 @@ def get_commit_of_release(tags, package, version):
     ]
 
     for pattern in patterns:
-        if output_tag:
-            break
-
-        pattern = re.compile(pattern)
-        temp = []
-        for tag in candidate_tags:
-            if pattern.match(tag.name.strip()):
-                temp.append(tag)
-        candidate_tags = temp
-        if len(candidate_tags) == 1:
-            output_tag = candidate_tags[0]
-
-    if output_tag:
-        return output_tag.commit
-    return None
+        tags = list(
+            filter(lambda tag: re.compile(pattern).match(tag.name.strip()), tags)
+        )
+        if len(tags) == 1:
+            return tags[0].commit
 
 
 def get_go_module_path(package):
-    """assumotion package name starts with <host>/org/repo"""
-    parts = package.split("/")
-    if len(parts) <= 3:
-        return None
-    else:
-        return "/".join(parts[3:])
+    """assumption: package name starts with <host>/org/repo"""
+    return "/".join(package.split("/")[3:])
 
 
 def get_version_diff_stats_from_repository_tags(package, repo_url, old, new):
@@ -110,8 +95,6 @@ def get_version_diff_stats_from_repository_tags(package, repo_url, old, new):
         files = get_diff_stats(temp_dir.name, old_commit, new_commit)
         temp_dir.cleanup()
         return files
-    else:
-        return None
 
 
 def go_get_version_diff_stats(package, repo_url, old, new):
@@ -128,6 +111,7 @@ def get_version_diff_stats(ecosystem, package, repo_url, old, new):
     elif ecosystem == NUGET:
         files = get_version_diff_stats_from_repository_tags(package, repo_url, old, new)
 
+        # try to filter out NuGet repository files
         package = package.lower()
         subpath = None
         for file in files.keys():
@@ -143,12 +127,9 @@ def get_version_diff_stats(ecosystem, package, repo_url, old, new):
                             subpath = path
                             break
         if subpath:
-            filtered = {}
-            for file in files.keys():
-                paths = file.lower().split("/")
-                if subpath in paths:
-                    filtered[file] = files[file]
-            files = filtered
+            files = dict(
+                filter(lambda x: subpath in x[0].lower().split("/"), files.items())
+            )
 
         return files
     else:
@@ -200,12 +181,9 @@ def get_maven_pacakge_url(package):
     url = "https://repo1.maven.org/maven2/" + s1.replace(".", "/") + "/" + s2
     if requests.get(url).status_code == 200:
         return url
-    else:
-        return None
 
 
 def download_zipped(url, path):
-    # download content in a zipped format
     compressed_file_name = "temp_data.zip"
     dest_file = "{}/{}".format(path, compressed_file_name)
 
@@ -221,13 +199,13 @@ def download_zipped(url, path):
 
 
 def download_tar(url, path):
-    # download content in a tarball gzip format
     compressed_file_name = "temp_data.tar.gz"
     dest_file = "{}/{}".format(path, compressed_file_name)
     r = requests.get(url)
     with open(dest_file, "wb") as output_file:
         output_file.write(r.content)
 
+    # TODO: can we make this logic a bit clearer
     flag = True
     while flag:
         flag = False
@@ -278,7 +256,7 @@ def download_package_source(url, ecosystem, package, version, dir_path):
         download_tar(url, dir_path)
     else:
         # do nothing
-        None
+        return None
 
     if (
         ecosystem == COMPOSER
@@ -299,7 +277,7 @@ def download_package_source(url, ecosystem, package, version, dir_path):
             path = dir_path
     else:
         files = os.listdir(dir_path)
-        print("check this: ", ecosystem, files)
+        sys.exit("check downloding regstiry tarball for:{}-{}".format(ecosystem, files))
     return path
 
 
@@ -313,34 +291,25 @@ def get_package_version_source_url(ecosystem, package, version):
         page = requests.get(url)
         data = json.loads(page.content)
         data = data["package"]["versions"]
-        for key in data.keys():
-            temp = key
-            if temp.startswith("v"):
-                temp = temp[1:]
-            if temp == version:
-                return data[key]["dist"]["url"]
+        data = {k[1:] if k.startswith("v") else k: v for k, v in data.items()}
+        if version in data:
+            return data[version]["dist"]["url"]
     elif ecosystem == NPM:
         url = "https://registry.npmjs.org/{}".format(package)
         page = requests.get(url)
         data = json.loads(page.content)
         data = data["versions"]
-        for key in data.keys():
-            temp = key
-            if temp.startswith("v"):
-                temp = temp[1:]
-            if temp == version:
-                return data[key]["dist"]["tarball"]
+        data = {k[1:] if k.startswith("v") else k: v for k, v in data.items()}
+        if version in data:
+            return data[version]["dist"]["tarball"]
     elif ecosystem == PYPI:
         url = "https://pypi.org/pypi/{}/json".format(package)
         page = requests.get(url)
         data = json.loads(page.content)
         data = data["releases"]
-        for key in data.keys():
-            temp = key
-            if temp.startswith("v"):
-                temp = temp[1:]
-            if temp == version:
-                return data[key][-1]["url"]
+        data = {k[1:] if k.startswith("v") else k: v for k, v in data.items()}
+        if version in data:
+            return data[version][-1]["url"]
     elif ecosystem == RUBYGEMS:
         return "https://rubygems.org/downloads/{}-{}.gem".format(package, version)
     elif ecosystem == MAVEN:
@@ -350,7 +319,6 @@ def get_package_version_source_url(ecosystem, package, version):
             url = "{}/{}/{}-{}-sources.jar".format(url, version, artifact, version)
             if requests.get(url).status_code == 200:
                 return url
-    return None
 
 
 def init_git_repo(path):
@@ -381,8 +349,6 @@ def get_diff_stats_from_pydriller(repo_path, commit_a, commit_b):
     ).traverse_commits():
 
         for m in commit.modified_files:
-            if m.change_type == pydriller.ModificationType.RENAME:
-                continue
             file = m.new_path
             if not file:
                 file = m.old_path
@@ -397,12 +363,7 @@ def get_diff_stats_from_pydriller(repo_path, commit_a, commit_b):
     return files
 
 
-def get_diff_stats(repo_path, commit_a, commit_b):
-    repository = Repo(repo_path)
-
-    uni_diff_text = repository.git.diff(
-        str(commit_a), str(commit_b), ignore_blank_lines=True, ignore_space_at_eol=True
-    )
+def get_diff_stats_from_git_diff(uni_diff_text):
     patch_set = PatchSet(uni_diff_text)
 
     files = {}
@@ -436,3 +397,13 @@ def get_diff_stats(repo_path, commit_a, commit_b):
             }
 
     return files
+
+
+def get_diff_stats(repo_path, commit_a, commit_b):
+    repository = Repo(repo_path)
+
+    uni_diff_text = repository.git.diff(
+        str(commit_a), str(commit_b), ignore_blank_lines=True, ignore_space_at_eol=True
+    )
+
+    return get_diff_stats_from_git_diff(uni_diff_text)

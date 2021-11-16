@@ -93,7 +93,7 @@ def test_get_go_module_path():
         get_go_module_path("github.com/keybase/client/go/chat/attachments")
         == "go/chat/attachments"
     )
-    assert get_go_module_path("github.com/lightningnetwork/lnd") is None
+    assert not get_go_module_path("github.com/lightningnetwork/lnd")
     assert (
         get_go_module_path("github.com/istio/istio/pilot/pkg/proxy/envoy/v2")
         == "pilot/pkg/proxy/envoy/v2"
@@ -129,6 +129,10 @@ def test_go():
 def get_files_loc_stat(files):
     # for k in files.keys():
     #     print(k, "\n::::::::::::::::::::::::::::::::::::::::\n", files[k])
+
+    # for files only renamed,
+    # need to filter out files with zero loc change
+
     changed_files = len(files)
     lines_added = lines_deleted = 0
     for k in files.keys():
