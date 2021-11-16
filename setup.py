@@ -45,7 +45,7 @@ setup(
     packages=find_packages(include=["version_differ", "version_differ.*"]),
     test_suite="tests",
     tests_require=test_requirements,
-    url="https://github.com/nasifimtiazohi/version_differ",
+    url="https://github.com/nasifimtiazohi/version-differ",
     version="0.7.1",
     zip_safe=False,
 )
