@@ -5,16 +5,13 @@ import json
 import os
 from zipfile import ZipFile
 import tarfile
-from pygit2 import Repository, clone_repository, init_repository, Signature, repository
+from pygit2 import init_repository, Signature
 from time import time
-import pydriller
+import pydriller 
 import tempfile
-from git import Repo, Git
+from git import Repo
 import re
-from pprint import pprint
-import subprocess, shlex
 from unidiff import PatchSet
-from io import StringIO
 
 CARGO = "Cargo"
 COMPOSER = "Composer"
@@ -375,28 +372,28 @@ def setup_remote(repo, url):
     remote.fetch()
 
 
-# def get_diff_stats_from_pydriller(repo_path, commit_a, commit_b):
-#     files = {}
+def get_diff_stats_from_pydriller(repo_path, commit_a, commit_b):
+    files = {}
 
-#     for commit in pydriller.Repository(
-#         repo_path, from_commit=commit_a, to_commit=commit_b, only_no_merge=True
-#     ).traverse_commits():
+    for commit in pydriller.Repository(
+        repo_path, from_commit=commit_a, to_commit=commit_b, only_no_merge=True
+    ).traverse_commits():
 
-#         for m in commit.modified_files:
-#             if m.change_type == pydriller.ModificationType.RENAME:
-#                 continue
-#             file = m.new_path
-#             if not file:
-#                 file = m.old_path
-#             assert file
+        for m in commit.modified_files:
+            if m.change_type == pydriller.ModificationType.RENAME:
+                continue
+            file = m.new_path
+            if not file:
+                file = m.old_path
+            assert file
 
-#             if file not in files:
-#                 files[file] = {"loc_added": 0, "loc_removed": 0}
+            if file not in files:
+                files[file] = {"loc_added": 0, "loc_removed": 0}
 
-#             files[file]["loc_added"] += m.added_lines
-#             files[file]["loc_removed"] += m.deleted_lines
+            files[file]["loc_added"] += m.added_lines
+            files[file]["loc_removed"] += m.deleted_lines
 
-#     return files
+    return files
 
 def get_diff_stats(repo_path, commit_a, commit_b):
     repository = Repo(repo_path)
@@ -411,20 +408,25 @@ def get_diff_stats(repo_path, commit_a, commit_b):
     for patched_file in patch_set:
         file_path = patched_file.path  # file name
         
-        del_line_no = [line.target_line_no 
+        ad_line_no = [line.target_line_no 
                     for hunk in patched_file for line in hunk 
                     if line.is_added and
                     line.value.strip() != '']  # the row number of deleted lines
-        lines_removed = len(del_line_no)
+        lines_added = len(ad_line_no)
         
-        ad_line_no = [line.source_line_no for hunk in patched_file 
+        
+        del_line_no = [line.source_line_no for hunk in patched_file 
                     for line in hunk if line.is_removed and
                     line.value.strip() != '']   # the row number of added liens
-        lines_added = len(ad_line_no)
+        lines_removed = len(del_line_no)
+
+        for hunk in patched_file:
+            for line in hunk:
+                print(line)
 
         loc_change = lines_added + lines_removed
         if loc_change > 0:
-            files[file_path] = {'loc_added': lines_added , 'loc_removed': lines_removed}
+            files[file_path] = {'loc_added': lines_added , 'loc_removed': lines_removed, 'added_lines': ad_line_no}
         
     return files
 
