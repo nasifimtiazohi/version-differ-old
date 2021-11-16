@@ -16,6 +16,7 @@ Sphinx = "==1.8.5"
 requests = "*"
 pygit2 = "*"
 pydriller = "*"
+pip = "*"
 
 [dev-packages]
 

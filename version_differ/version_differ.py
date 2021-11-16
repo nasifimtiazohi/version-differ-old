@@ -19,10 +19,9 @@ GO = "Go"
 MAVEN = "Maven"
 NPM = "npm"
 NUGET = "NuGet"
-PIP = "pip"
+PYPI = PIP = "pip"
 RUBYGEMS = "RubyGems"
-
-ecosystems = [CARGO, COMPOSER, GO, MAVEN, NPM, NUGET, PIP, RUBYGEMS]
+ecosystems = [CARGO, COMPOSER, GO, MAVEN, NPM, NUGET, PYPI, RUBYGEMS]
 
 
 def sanitize_repo_url(repo_url):
@@ -283,7 +282,7 @@ def download_package_source(url, ecosystem, package, version, dir_path):
         download_zipped(url, dir_path)
     elif (
         ecosystem == NPM
-        or ecosystem == PIP
+        or ecosystem == PYPI
         or ecosystem == RUBYGEMS
         or ecosystem == CARGO
     ):
@@ -295,7 +294,7 @@ def download_package_source(url, ecosystem, package, version, dir_path):
     if (
         ecosystem == COMPOSER
         or ecosystem == NPM
-        or ecosystem == PIP
+        or ecosystem == PYPI
         or ecosystem == CARGO
     ):
         files = os.listdir(dir_path)
@@ -342,7 +341,7 @@ def get_package_version_source_url(ecosystem, package, version):
                 temp = temp[1:]
             if temp == version:
                 return data[key]["dist"]["tarball"]
-    elif ecosystem == PIP:
+    elif ecosystem == PYPI:
         url = "https://pypi.org/pypi/{}/json".format(package)
         page = requests.get(url)
         data = json.loads(page.content)
