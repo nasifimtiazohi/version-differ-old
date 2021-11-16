@@ -7,7 +7,7 @@ from zipfile import ZipFile
 import tarfile
 from pygit2 import init_repository, Signature
 from time import time
-import pydriller 
+import pydriller
 import tempfile
 from git import Repo
 import re
@@ -24,44 +24,44 @@ RUBYGEMS = "RubyGems"
 
 ecosystems = [CARGO, COMPOSER, GO, MAVEN, NPM, NUGET, PIP, RUBYGEMS]
 
-def sanitize_repo_url(repo_url):
-    '''trim down repo url for a valid git fetch'''
 
-    http = 'https://'
+def sanitize_repo_url(repo_url):
+    http = "https://"
     assert repo_url.startswith(http)
-    
+
     # gitbox urls
-    s='https://gitbox.apache.org/repos/asf?p='
+    s = "https://gitbox.apache.org/repos/asf?p="
     url = repo_url
     if url.startswith(s):
-        url = url[len(s):]
-        assert url.count('.git') == 1
-        url = url[:url.find('.git')]
-        return 'https://gitbox.apache.org/repos/asf/'+url
-    
-    s = repo_url[len(http):]
+        url = url[len(s) :]
+        assert url.count(".git") == 1
+        url = url[: url.find(".git")]
+        return "https://gitbox.apache.org/repos/asf/" + url
 
-    #custom
-    if s.startswith('svn.opensymphony.com'):
+    s = repo_url[len(http) :]
+
+    # custom
+    if s.startswith("svn.opensymphony.com"):
         return repo_url
 
-    #below rule covers github, gitlab, bitbucket, foocode, eday, qt
-    sources = ['github', 'gitlab', 'bitbucket', 'foocode', 'eday', 'q', 'opendev']
+    # below rule covers github, gitlab, bitbucket, foocode, eday, qt
+    sources = ["github", "gitlab", "bitbucket", "foocode", "eday", "q", "opendev"]
     flag = False
     for source in sources:
         if source in s:
             flag = True
     assert flag
 
-    if s.endswith('.git'):
-        s=s[:-len('.git')]
-    s = http + '/'.join(s.split('/')[:3])
+    if s.endswith(".git"):
+        s = s[: -len(".git")]
+    s = http + "/".join(s.split("/")[:3])
 
     return s
 
+
 def get_commit_of_release(tags, package, version):
-    '''tags is a gitpython object, 
-    while version is a string taken from ecosystem data'''
+    """tags is a gitpython object,
+    while version is a string taken from ecosystem data"""
 
     version = version.strip()
     output_tag = None
@@ -73,14 +73,12 @@ def get_commit_of_release(tags, package, version):
         # 1. Ensure the version part does not follow any digit between 1-9,
         # e.g., to distinguish betn 0.1.8 vs 10.1.8
         r"^(?:.*[^1-9])?{}$".format(version_formatted_for_regex),
-
         # 2. If still more than one candidate,
         # check the extistence of crate name
         r"^.*{}(?:.*[^1-9])?{}$".format(package, version_formatted_for_regex),
-
         # 3. check if and only if crate name and version string is present
         # besides non-alphanumeric, e.g., to distinguish guppy vs guppy-summaries
-        r"^.*{}\W*{}$".format(package, version_formatted_for_regex)
+        r"^.*{}\W*{}$".format(package, version_formatted_for_regex),
     ]
 
     for pattern in patterns:
@@ -95,18 +93,20 @@ def get_commit_of_release(tags, package, version):
         candidate_tags = temp
         if len(candidate_tags) == 1:
             output_tag = candidate_tags[0]
-    
+
     if output_tag:
         return output_tag.commit
     return None
 
+
 def get_go_module_path(package):
-    '''assumotion package name starts with <host>/org/repo'''
-    parts = package.split('/')
+    """assumotion package name starts with <host>/org/repo"""
+    parts = package.split("/")
     if len(parts) <= 3:
         return None
     else:
-        return '/'.join(parts[3:])
+        return "/".join(parts[3:])
+
 
 def get_version_diff_stats_from_repository_tags(package, repo_url, old, new):
     url = sanitize_repo_url(repo_url)
@@ -125,62 +125,69 @@ def get_version_diff_stats_from_repository_tags(package, repo_url, old, new):
     else:
         return None
 
+
 def go_get_version_diff_stats(package, repo_url, old, new):
     files = get_version_diff_stats_from_repository_tags(package, repo_url, old, new)
     module_path = get_go_module_path(package)
     if module_path:
-        files = {k: v for (k,v) in files.items() if k.startswith(module_path)}
+        files = {k: v for (k, v) in files.items() if k.startswith(module_path)}
     return files
+
 
 def get_version_diff_stats(ecosystem, package, repo_url, old, new):
     if ecosystem == GO:
         files = go_get_version_diff_stats(package, repo_url, old, new)
     elif ecosystem == NUGET:
         files = get_version_diff_stats_from_repository_tags(package, repo_url, old, new)
-        
+
         package = package.lower()
         subpath = None
         for file in files.keys():
-            file = file.lower().split('/')
+            file = file.lower().split("/")
             if package in file:
                 subpath = package
                 break
             else:
                 for path in file:
                     if package.endswith(path):
-                        temp = package[:-len(path)]
-                        if temp[-1] == '.':
+                        temp = package[: -len(path)]
+                        if temp[-1] == ".":
                             subpath = path
                             break
         if subpath:
             filtered = {}
             for file in files.keys():
-                paths = file.lower().split('/')
+                paths = file.lower().split("/")
                 if subpath in paths:
                     filtered[file] = files[file]
             files = filtered
-        
+
         return files
     else:
         files = get_version_diff_stats_registry(ecosystem, package, old, new)
-    
+
     return files
+
 
 def get_version_diff_stats_registry(ecosystem, package, old, new):
     temp_dir_old = tempfile.TemporaryDirectory()
     url = get_package_version_source_url(ecosystem, package, old)
     if url:
-        old_path = download_package_source(url, ecosystem, package, old, temp_dir_old.name)
+        old_path = download_package_source(
+            url, ecosystem, package, old, temp_dir_old.name
+        )
     else:
         return None
 
     temp_dir_new = tempfile.TemporaryDirectory()
     url = get_package_version_source_url(ecosystem, package, new)
     if url:
-        new_path = download_package_source(url, ecosystem, package, new, temp_dir_new.name)
+        new_path = download_package_source(
+            url, ecosystem, package, new, temp_dir_new.name
+        )
     else:
         return None
-    
+
     repo_old, oid_old = init_git_repo(old_path)
     repo_new, oid_new = init_git_repo(new_path)
 
@@ -191,8 +198,9 @@ def get_version_diff_stats_registry(ecosystem, package, old, new):
     temp_dir_old.cleanup()
     temp_dir_new.cleanup()
 
-    return stats 
-    
+    return stats
+
+
 def get_maven_pacakge_url(package):
     url = "https://repo1.maven.org/maven2/" + package.replace(".", "/").replace(
         ":", "/"
@@ -206,6 +214,7 @@ def get_maven_pacakge_url(package):
         return url
     else:
         return None
+
 
 def download_zipped(url, path):
     # download content in a zipped format
@@ -221,6 +230,7 @@ def download_zipped(url, path):
     z.close()
 
     os.remove(dest_file)
+
 
 def download_tar(url, path):
     # download content in a tarball gzip format
@@ -246,11 +256,12 @@ def download_tar(url, path):
                         flag = True
                     except:
                         # in npm, main tar extracts into data.tar.gz
-                        if file == 'temp_data.tar.gz' or file == 'data.tar.gz':
+                        if file == "temp_data.tar.gz" or file == "data.tar.gz":
                             raise Exception("cannot extract the main tar")
                         else:
                             # don't bother
                             pass
+
 
 def download_package_source(url, ecosystem, package, version, dir_path):
     print(
@@ -259,11 +270,7 @@ def download_package_source(url, ecosystem, package, version, dir_path):
         )
     )
     # First try based on file extension
-    if (
-        url.endswith(".whl")
-        or url.endswith(".jar")
-        or url.endswith(".zip")
-    ):
+    if url.endswith(".whl") or url.endswith(".jar") or url.endswith(".zip"):
         download_zipped(url, dir_path)
     elif (
         url.endswith(".gz")
@@ -271,7 +278,7 @@ def download_package_source(url, ecosystem, package, version, dir_path):
         or url.endswith(".gem")
         or url.endswith(".tgz")
     ):
-       download_tar(url, dir_path)
+        download_tar(url, dir_path)
     elif ecosystem == COMPOSER or ecosystem == MAVEN:
         download_zipped(url, dir_path)
     elif (
@@ -283,10 +290,14 @@ def download_package_source(url, ecosystem, package, version, dir_path):
         download_tar(url, dir_path)
     else:
         # do nothing
-        None 
-    
+        None
 
-    if ecosystem == COMPOSER or ecosystem == NPM or ecosystem == PIP or ecosystem == CARGO:
+    if (
+        ecosystem == COMPOSER
+        or ecosystem == NPM
+        or ecosystem == PIP
+        or ecosystem == CARGO
+    ):
         files = os.listdir(dir_path)
         assert len(files) == 1
         path = "{}/{}".format(dir_path, files[0])
@@ -296,12 +307,13 @@ def download_package_source(url, ecosystem, package, version, dir_path):
         files = os.listdir(dir_path)
         if len(files) == 1:
             path = "{}/{}".format(dir_path, files[0])
-        else: 
+        else:
             path = dir_path
     else:
         files = os.listdir(dir_path)
         print("check this: ", ecosystem, files)
     return path
+
 
 def get_package_version_source_url(ecosystem, package, version):
     assert ecosystem in ecosystems
@@ -315,8 +327,8 @@ def get_package_version_source_url(ecosystem, package, version):
         data = data["package"]["versions"]
         for key in data.keys():
             temp = key
-            if temp.startswith('v'):
-                temp =  temp[1:]
+            if temp.startswith("v"):
+                temp = temp[1:]
             if temp == version:
                 return data[key]["dist"]["url"]
     elif ecosystem == NPM:
@@ -326,8 +338,8 @@ def get_package_version_source_url(ecosystem, package, version):
         data = data["versions"]
         for key in data.keys():
             temp = key
-            if temp.startswith('v'):
-                temp =  temp[1:]
+            if temp.startswith("v"):
+                temp = temp[1:]
             if temp == version:
                 return data[key]["dist"]["tarball"]
     elif ecosystem == PIP:
@@ -337,8 +349,8 @@ def get_package_version_source_url(ecosystem, package, version):
         data = data["releases"]
         for key in data.keys():
             temp = key
-            if temp.startswith('v'):
-                temp =  temp[1:]
+            if temp.startswith("v"):
+                temp = temp[1:]
             if temp == version:
                 return data[key][-1]["url"]
     elif ecosystem == RUBYGEMS:
@@ -351,6 +363,7 @@ def get_package_version_source_url(ecosystem, package, version):
             if requests.get(url).status_code == 200:
                 return url
     return None
+
 
 def init_git_repo(path):
     repo = init_repository(path)
@@ -395,43 +408,43 @@ def get_diff_stats_from_pydriller(repo_path, commit_a, commit_b):
 
     return files
 
+
 def get_diff_stats(repo_path, commit_a, commit_b):
     repository = Repo(repo_path)
 
-    uni_diff_text = repository.git.diff(str(commit_a), str(commit_b),
-                                    ignore_blank_lines=True, 
-                                    ignore_space_at_eol=True)
+    uni_diff_text = repository.git.diff(
+        str(commit_a), str(commit_b), ignore_blank_lines=True, ignore_space_at_eol=True
+    )
     patch_set = PatchSet(uni_diff_text)
 
     files = {}
 
     for patched_file in patch_set:
         file_path = patched_file.path  # file name
-        
-        ad_line = [line.value 
-                    for hunk in patched_file 
-                    for line in hunk 
-                    if line.is_added and
-                    line.value.strip() != '']  # the row number of deleted lines
+
+        ad_line = [
+            line.value
+            for hunk in patched_file
+            for line in hunk
+            if line.is_added and line.value.strip() != ""
+        ]  # the row number of deleted lines
         lines_added = len(ad_line)
-        
-        
-        del_line = [line.value
-                    for hunk in patched_file 
-                    for line in hunk 
-                    if line.is_removed and
-                    line.value.strip() != '']   # the row number of added liens
+
+        del_line = [
+            line.value
+            for hunk in patched_file
+            for line in hunk
+            if line.is_removed and line.value.strip() != ""
+        ]  # the row number of added liens
         lines_removed = len(del_line)
 
         loc_change = lines_added + lines_removed
         if loc_change > 0:
-            files[file_path] = {'loc_added': lines_added , 
-            'loc_removed': lines_removed, 
-            'added_lines': ad_line,
-            'deleted_lines': del_line}
-        
+            files[file_path] = {
+                "loc_added": lines_added,
+                "loc_removed": lines_removed,
+                "added_lines": ad_line,
+                "deleted_lines": del_line,
+            }
+
     return files
-
-
-    
-    
