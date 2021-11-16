@@ -7,6 +7,7 @@ from requests.api import get
 import pytest
 import tempfile
 from git import Repo
+from pygit2 import clone_repository
 
 
 from version_differ.version_differ import *
@@ -88,77 +89,90 @@ def test_get_go_module_path():
 def test_go():
     assert get_files_loc_stat(
         go_get_version_diff_stats("github.com/labstack/echo/middleware",
-    "https://github.com/labstack/echo", "4.2.0", "4.1.17")) == (27, 2695)
+    "https://github.com/labstack/echo", "4.1.17", "4.2.0")) == (27, 2461, 234)
 
     assert  get_files_loc_stat(
         go_get_version_diff_stats("github.com/crewjam/saml","https://github.com/crewjam/saml",
-        "0.4.2", "0.4.3")) == (10, 192)
+        "0.4.2", "0.4.3")) == (10, 179, 13)
     
 def get_files_loc_stat(files):
-    f = len(files)
-    loc = 0
+    # for k in files.keys():
+    #     print(k, "\n::::::::::::::::::::::::::::::::::::::::\n", files[k])
+    changed_files = len(files)
+    lines_added = lines_deleted = 0
     for k in files.keys():
-        loc += (files[k]['loc_added'] + files[k]['loc_removed'])
-    return f, loc
+        lines_added += files[k]['loc_added']
+        lines_deleted += files[k]['loc_removed']
+    return changed_files, lines_added, lines_deleted
 
 def test_composer():
     assert get_files_loc_stat(
             get_version_diff_stats(
             COMPOSER, "psr/log", "https://github.com/php-fig/log",  "1.1.4",  "2.0.0"
             )
-        ) == (10, 486)
+        ) == (10, 56, 430)
     
     assert get_files_loc_stat(
             get_version_diff_stats(
-            COMPOSER, "illuminate/auth", "https://github.com/illuminate/auth", "4.1.26", "4.1.25"
+            COMPOSER, "illuminate/auth", "https://github.com/illuminate/auth", "4.1.25", "4.1.26"
             )
-        ) == (6, 199)
+        ) == (6, 186, 13)
 
 
 def test_maven():
     assert get_files_loc_stat(
             get_version_diff_stats(
-            MAVEN, "com.github.junrar:junrar", "https://github.com/junrar/junrar.git", "1.0.1", "1.0.0"
+            MAVEN, "com.github.junrar:junrar", "https://github.com/junrar/junrar.git", "1.0.0", "1.0.1"
             )
-        ) == (8, 165)
+        ) == (8, 40, 125)
     
     assert get_files_loc_stat(
             get_version_diff_stats(
-            MAVEN, "org.togglz:togglz-console", "https://github.com/togglz/togglz", "2.9.4", "2.9.3"
+            MAVEN, "org.togglz:togglz-console", "https://github.com/togglz/togglz", "2.9.3", "2.9.4"
             )
-        ) == (8, 90)
+        ) == (8, 88, 2)
     
 def test_npm():
     assert get_files_loc_stat(
-        get_version_diff_stats(NPM, "lodash", "https://github.com/lodash/lodash", "4.11.1", "4.11.0")) == (12,98)
+        get_version_diff_stats(
+            NPM, "lodash", "https://github.com/lodash/lodash", "4.11.0", "4.11.1")
+            ) == (12, 54, 44)
     
     
     assert get_files_loc_stat(
-        get_version_diff_stats(NPM, "set-value", "https://github.com/jonschlinkert/set-value", "3.0.0", "3.0.1")) == (4,48)
-    
-    # print(get_version_diff_stats(NPM, "property-expr","https://github.com/jquense/expr", "2.0.2", "2.0.3"))
+        get_version_diff_stats(
+            NPM, "set-value", "https://github.com/jonschlinkert/set-value", "3.0.0", "3.0.1")
+            ) == (4,23, 25)
 
 def test_nuget():
     assert get_files_loc_stat(
-        get_version_diff_stats(NUGET, "messagepack.immutablecollection", "https://github.com/neuecc/MessagePack-CSharp",  "2.1.80","2.0.335")
-    ) == (1, 20)
+        get_version_diff_stats(NUGET, "messagepack.immutablecollection", "https://github.com/neuecc/MessagePack-CSharp", "2.0.335", "2.1.80")
+    ) == (1, 14, 6)
 
     assert get_files_loc_stat(
-        get_version_diff_stats(NUGET, "microsoft.aspnetcore.server.kestrel.core", "https://github.com/aspnet/KestrelHttpServer", "2.0.2", "2.0.3")) == (7, 113)
+        get_version_diff_stats(
+            NUGET, "microsoft.aspnetcore.server.kestrel.core", "https://github.com/aspnet/KestrelHttpServer", "2.0.2", "2.0.3")
+            ) == (7, 89, 24)
 
 
 def test_pip():
     assert get_files_loc_stat(
-        get_version_diff_stats(PIP, "meinheld", "asdasd", "1.0.2", "1.0.1")) == (43, 12469)
+        get_version_diff_stats(
+            PIP, "meinheld", "https://github.com/mopemope/meinheld", "1.0.1", "1.0.2")
+            ) == (43, 6091, 6380)
 
 def test_rubygems():
+    # in below example, auto-generated file spec/example.txt causes a large diff
     assert get_files_loc_stat(
         get_version_diff_stats(
-            RUBYGEMS, "yard", "https://github.com/lsegal/yard", "0.9.20", "0.9.19"
-        )) == (10, 3402)
+            RUBYGEMS, "yard", "https://github.com/lsegal/yard", "0.9.19", "0.9.20"
+        )) == (10, 1706, 1696)
+    
     
 def test_cargo():
-    assert get_files_loc_stat(get_version_diff_stats(CARGO, "guppy", "adsd", "0.8.0", "0.9.0")) == (9, 393)
+    assert get_files_loc_stat(
+        get_version_diff_stats(CARGO, "guppy", "https://github.com/facebookincubator/cargo-guppy", "0.8.0", "0.9.0")
+        ) == (9, 222, 171)
 
 
 def test_sanitize_repo_url():
