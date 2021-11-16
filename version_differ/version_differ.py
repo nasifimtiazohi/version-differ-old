@@ -12,6 +12,7 @@ import tempfile
 from git import Repo
 import re
 from unidiff import PatchSet
+from urllib.parse import urlparse, parse_qs
 
 CARGO = "Cargo"
 COMPOSER = "Composer"
@@ -25,37 +26,25 @@ ecosystems = [CARGO, COMPOSER, GO, MAVEN, NPM, NUGET, PYPI, RUBYGEMS]
 
 
 def sanitize_repo_url(repo_url):
-    http = "https://"
-    assert repo_url.startswith(http)
+    parsed_url = urlparse(repo_url)
+    host = parsed_url.netloc
 
-    # gitbox urls
-    s = "https://gitbox.apache.org/repos/asf?p="
-    url = repo_url
-    if url.startswith(s):
-        url = url[len(s) :]
-        assert url.count(".git") == 1
-        url = url[: url.find(".git")]
-        return "https://gitbox.apache.org/repos/asf/" + url
+    if host == "gitbox.apache.org" and "p" in parse_qs(parsed_url.query).keys():
+        project_name = parse_qs(parsed_url.query)["p"]
+        return "https://gitbox.apache.org/repos/asf/{}".format(project_name)
 
-    s = repo_url[len(http) :]
-
-    # custom
-    if s.startswith("svn.opensymphony.com"):
+    if host == "svn.opensymphony.com":
         return repo_url
 
     # below rule covers github, gitlab, bitbucket, foocode, eday, qt
     sources = ["github", "gitlab", "bitbucket", "foocode", "eday", "q", "opendev"]
-    flag = False
-    for source in sources:
-        if source in s:
-            flag = True
-    assert flag
+    assert any(
+        [x in host for x in sources]
+    ), "unknown host for repository url: {}".format(repo_url)
 
-    if s.endswith(".git"):
-        s = s[: -len(".git")]
-    s = http + "/".join(s.split("/")[:3])
-
-    return s
+    paths = parsed_url.path.removesuffix(".git").split("/")
+    owner, repo = paths[1], paths[2]
+    return "https://{}/{}/{}".format(host, owner, repo)
 
 
 def get_commit_of_release(tags, package, version):
