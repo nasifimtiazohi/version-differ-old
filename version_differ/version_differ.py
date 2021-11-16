@@ -408,25 +408,27 @@ def get_diff_stats(repo_path, commit_a, commit_b):
     for patched_file in patch_set:
         file_path = patched_file.path  # file name
         
-        ad_line_no = [line.target_line_no 
-                    for hunk in patched_file for line in hunk 
+        ad_line = [line.value 
+                    for hunk in patched_file 
+                    for line in hunk 
                     if line.is_added and
                     line.value.strip() != '']  # the row number of deleted lines
-        lines_added = len(ad_line_no)
+        lines_added = len(ad_line)
         
         
-        del_line_no = [line.source_line_no for hunk in patched_file 
-                    for line in hunk if line.is_removed and
+        del_line = [line.value
+                    for hunk in patched_file 
+                    for line in hunk 
+                    if line.is_removed and
                     line.value.strip() != '']   # the row number of added liens
-        lines_removed = len(del_line_no)
-
-        for hunk in patched_file:
-            for line in hunk:
-                print(line)
+        lines_removed = len(del_line)
 
         loc_change = lines_added + lines_removed
         if loc_change > 0:
-            files[file_path] = {'loc_added': lines_added , 'loc_removed': lines_removed, 'added_lines': ad_line_no}
+            files[file_path] = {'loc_added': lines_added , 
+            'loc_removed': lines_removed, 
+            'added_lines': ad_line,
+            'deleted_lines': del_line}
         
     return files
 
