@@ -43,7 +43,7 @@ def sanitize_repo_url(repo_url):
         [x in host for x in sources]
     ), "unknown host for repository url: {}".format(repo_url)
 
-    paths = parsed_url.path.removesuffix(".git").split("/")
+    paths = [s.removesuffix(".git") for s in parsed_url.path.split("/")]
     owner, repo = paths[1], paths[2]
     return "https://{}/{}/{}".format(host, owner, repo)
 
