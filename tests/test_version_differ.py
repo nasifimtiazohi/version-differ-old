@@ -40,15 +40,14 @@ def test_src_download_url():
     )
 
 
-def test_init_git_repo():
-    dir_a = tempfile.TemporaryDirectory().name
-    dir_b = tempfile.TemporaryDirectory().name
-    repo_a, oid_a = init_git_repo(dir_a)
-    repo_b, oid_b = init_git_repo(dir_b)
-    setup_remote(repo_a, dir_b)
+# def test_init_git_repo():
+#     dir_a = tempfile.TemporaryDirectory().name
+#     dir_b = tempfile.TemporaryDirectory().name
+#     repo_a, oid_a = init_git_repo(dir_a)
+#     repo_b, oid_b = init_git_repo(dir_b)
+#     setup_remote(repo_a, dir_b)
 
-    diff = get_diff_stats(dir_a, oid_a, oid_b)
-    print(diff)
+#     diff = get_diff_stats(dir_a, oid_a, oid_b)
 
 
 def test_get_commit_of_release():
