@@ -105,10 +105,12 @@ def go_get_version_diff_stats(package, repo_url, old, new):
     return files
 
 
-def get_version_diff_stats(ecosystem, package, repo_url, old, new):
+def get_version_diff_stats(ecosystem, package, old, new, repo_url=None):
     if ecosystem == GO:
+        assert repo_url, "Repository URL required for Go packages"
         files = go_get_version_diff_stats(package, repo_url, old, new)
     elif ecosystem == NUGET:
+        assert repo_url, "Repository URL required for NuGet packages"
         files = get_version_diff_stats_from_repository_tags(package, repo_url, old, new)
 
         # try to filter out NuGet repository files

@@ -40,16 +40,6 @@ def test_src_download_url():
     )
 
 
-# def test_init_git_repo():
-#     dir_a = tempfile.TemporaryDirectory().name
-#     dir_b = tempfile.TemporaryDirectory().name
-#     repo_a, oid_a = init_git_repo(dir_a)
-#     repo_b, oid_b = init_git_repo(dir_b)
-#     setup_remote(repo_a, dir_b)
-
-#     diff = get_diff_stats(dir_a, oid_a, oid_b)
-
-
 def test_get_commit_of_release():
     temp_dir = tempfile.TemporaryDirectory()
     url = "https://github.com/nasifimtiazohi/test-version-tag"
@@ -126,9 +116,7 @@ def get_files_loc_stat(files):
 
 def test_composer():
     assert get_files_loc_stat(
-        get_version_diff_stats(
-            COMPOSER, "psr/log", "https://github.com/php-fig/log", "1.1.4", "2.0.0"
-        )
+        get_version_diff_stats(COMPOSER, "psr/log", "1.1.4", "2.0.0")
     ) == (10, 56, 430)
 
     assert (
@@ -136,7 +124,6 @@ def test_composer():
             get_version_diff_stats(
                 COMPOSER,
                 "illuminate/auth",
-                "https://github.com/illuminate/auth",
                 "4.1.25",
                 "4.1.26",
             )
@@ -151,7 +138,6 @@ def test_maven():
             get_version_diff_stats(
                 MAVEN,
                 "com.github.junrar:junrar",
-                "https://github.com/junrar/junrar.git",
                 "1.0.0",
                 "1.0.1",
             )
@@ -164,7 +150,6 @@ def test_maven():
             get_version_diff_stats(
                 MAVEN,
                 "org.togglz:togglz-console",
-                "https://github.com/togglz/togglz",
                 "2.9.3",
                 "2.9.4",
             )
@@ -175,9 +160,7 @@ def test_maven():
 
 def test_npm():
     assert get_files_loc_stat(
-        get_version_diff_stats(
-            NPM, "lodash", "https://github.com/lodash/lodash", "4.11.0", "4.11.1"
-        )
+        get_version_diff_stats(NPM, "lodash", "4.11.0", "4.11.1")
     ) == (12, 54, 44)
 
     assert (
@@ -185,7 +168,6 @@ def test_npm():
             get_version_diff_stats(
                 NPM,
                 "set-value",
-                "https://github.com/jonschlinkert/set-value",
                 "3.0.0",
                 "3.0.1",
             )
@@ -200,9 +182,9 @@ def test_nuget():
             get_version_diff_stats(
                 NUGET,
                 "messagepack.immutablecollection",
-                "https://github.com/neuecc/MessagePack-CSharp",
                 "2.0.335",
                 "2.1.80",
+                "https://github.com/neuecc/MessagePack-CSharp",
             )
         )
         == (1, 14, 6)
@@ -213,9 +195,9 @@ def test_nuget():
             get_version_diff_stats(
                 NUGET,
                 "microsoft.aspnetcore.server.kestrel.core",
-                "https://github.com/aspnet/KestrelHttpServer",
                 "2.0.2",
                 "2.0.3",
+                "https://github.com/aspnet/KestrelHttpServer",
             )
         )
         == (7, 89, 24)
@@ -224,18 +206,14 @@ def test_nuget():
 
 def test_pip():
     assert get_files_loc_stat(
-        get_version_diff_stats(
-            PIP, "meinheld", "https://github.com/mopemope/meinheld", "1.0.1", "1.0.2"
-        )
+        get_version_diff_stats(PIP, "meinheld", "1.0.1", "1.0.2")
     ) == (43, 6091, 6380)
 
 
 def test_rubygems():
     # in below example, auto-generated file spec/example.txt causes a large diff
     assert get_files_loc_stat(
-        get_version_diff_stats(
-            RUBYGEMS, "yard", "https://github.com/lsegal/yard", "0.9.19", "0.9.20"
-        )
+        get_version_diff_stats(RUBYGEMS, "yard", "0.9.19", "0.9.20")
     ) == (10, 1706, 1696)
 
 
@@ -245,7 +223,6 @@ def test_cargo():
             get_version_diff_stats(
                 CARGO,
                 "guppy",
-                "https://github.com/facebookincubator/cargo-guppy",
                 "0.8.0",
                 "0.9.0",
             )
