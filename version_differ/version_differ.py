@@ -169,6 +169,8 @@ def get_git_sha_from_cargo_crate(package_path):
 
 
 def get_version_diff_stats_registry(ecosystem, package, old, new):
+    old_sha = new_sha = None  # currently one cargo provides git sha
+
     temp_dir_old = tempfile.TemporaryDirectory()
     url = get_package_version_source_url(ecosystem, package, old)
     if url:
@@ -176,7 +178,7 @@ def get_version_diff_stats_registry(ecosystem, package, old, new):
             url, ecosystem, package, old, temp_dir_old.name
         )
         if ecosystem == CARGO:
-            old_sha = get_git_sha_from_cargo_crate(ecosystem, old_path)
+            old_sha = get_git_sha_from_cargo_crate(old_path)
     else:
         return None
 
@@ -187,7 +189,7 @@ def get_version_diff_stats_registry(ecosystem, package, old, new):
             url, ecosystem, package, new, temp_dir_new.name
         )
         if ecosystem == CARGO:
-            new_sha = get_git_sha_from_cargo_crate(ecosystem, new_path)
+            new_sha = get_git_sha_from_cargo_crate(new_path)
     else:
         return None
 
