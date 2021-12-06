@@ -28,7 +28,7 @@ def test_src_download_url():
     )
     assert (
         get_package_version_source_url(PIP, "Django", "3.2.7")
-        == "https://files.pythonhosted.org/packages/59/45/c6fbb3a206df0b7dc3e6e8fae738e042c63d4ddf828c6e1ba10d7417a1d9/Django-3.2.7.tar.gz"
+        == "https://files.pythonhosted.org/packages/27/1c/6fe40cdfdbbc8a0d7c211dde68777f1d435bde7879697d0bc20c73d136ac/Django-3.2.7-py3-none-any.whl"
     )
     assert (
         get_package_version_source_url(RUBYGEMS, "bundler", "2.2.27")
@@ -99,13 +99,20 @@ def test_go():
     )
 
 
-def get_files_loc_stat(files):
+def get_sha_stat(output):
+    return (
+        output["metadata_info"]["old_version_sha"],
+        output["metadata_info"]["new_version_sha"],
+    )
+
+
+def get_files_loc_stat(output):
     # for k in files.keys():
     #     print(k, "\n::::::::::::::::::::::::::::::::::::::::\n", files[k])
 
     # for files only renamed,
     # need to filter out files with zero loc change
-
+    files = output["diff"]
     changed_files = len(files)
     lines_added = lines_deleted = 0
     for k in files.keys():
@@ -209,6 +216,14 @@ def test_pip():
         get_version_diff_stats(PIP, "meinheld", "1.0.1", "1.0.2")
     ) == (43, 6091, 6380)
 
+    assert get_files_loc_stat(
+        get_version_diff_stats(PIP, "django", "3.1.6", "3.1.7")
+    ) == (3, 5, 2)
+
+    assert get_files_loc_stat(
+        get_version_diff_stats(PIP, "azure-storage-blob", "12.8.0", "12.8.1")
+    ) == (24, 773, 457)
+
 
 def test_rubygems():
     # in below example, auto-generated file spec/example.txt causes a large diff
@@ -216,19 +231,23 @@ def test_rubygems():
         get_version_diff_stats(RUBYGEMS, "yard", "0.9.19", "0.9.20")
     ) == (10, 1706, 1696)
 
+    assert get_files_loc_stat(
+        get_version_diff_stats(RUBYGEMS, "bundler", "2.2.31", "2.2.32")
+    ) == (7, 45, 70)
+
 
 def test_cargo():
-    assert (
-        get_files_loc_stat(
-            get_version_diff_stats(
-                CARGO,
-                "guppy",
-                "0.8.0",
-                "0.9.0",
-            )
-        )
-        == (9, 222, 171)
+    output = get_version_diff_stats(
+        CARGO,
+        "guppy",
+        "0.8.0",
+        "0.9.0",
     )
+    assert get_sha_stat(output) == (
+        "d11084663f5c6757f0882f938a0c6a204996a1c4",
+        "fe61a8b85feab1963ee1985bf0e4791fdd354aa5",
+    )
+    assert get_files_loc_stat(output) == (9, 222, 171)
 
 
 def test_sanitize_repo_url():

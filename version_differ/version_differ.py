@@ -1,5 +1,6 @@
 """Main module."""
 
+from git.exc import CacheError
 import requests
 import json
 import os
@@ -14,6 +15,8 @@ from git import Repo
 import re
 from unidiff import PatchSet
 from urllib.parse import urlparse, parse_qs
+from os.path import join
+import shutil
 
 CARGO = "Cargo"
 COMPOSER = "Composer"
@@ -94,15 +97,27 @@ def get_version_diff_stats_from_repository_tags(package, repo_url, old, new):
     if old_commit and new_commit:
         files = get_diff_stats(temp_dir.name, old_commit, new_commit)
         temp_dir.cleanup()
-        return files
+
+        output = {
+            "metadata_info": {
+                "old_version_sha": old_commit,
+                "new_version_sha": new_commit,
+            },
+            "diff": files,
+        }
+        return output
 
 
 def go_get_version_diff_stats(package, repo_url, old, new):
-    files = get_version_diff_stats_from_repository_tags(package, repo_url, old, new)
+    output = get_version_diff_stats_from_repository_tags(package, repo_url, old, new)
+
+    files = output["diff"]
     module_path = get_go_module_path(package)
     if module_path:
         files = {k: v for (k, v) in files.items() if k.startswith(module_path)}
-    return files
+    output["diff"] = files
+
+    return output
 
 
 def get_version_diff_stats(ecosystem, package, old, new, repo_url=None):
@@ -111,9 +126,12 @@ def get_version_diff_stats(ecosystem, package, old, new, repo_url=None):
         files = go_get_version_diff_stats(package, repo_url, old, new)
     elif ecosystem == NUGET:
         assert repo_url, "Repository URL required for NuGet packages"
-        files = get_version_diff_stats_from_repository_tags(package, repo_url, old, new)
+        output = get_version_diff_stats_from_repository_tags(
+            package, repo_url, old, new
+        )
 
         # try to filter out NuGet repository files
+        files = output["diff"]
         package = package.lower()
         subpath = None
         for file in files.keys():
@@ -133,11 +151,21 @@ def get_version_diff_stats(ecosystem, package, old, new, repo_url=None):
                 filter(lambda x: subpath in x[0].lower().split("/"), files.items())
             )
 
-        return files
+        output["diff"] = files
+        return output
     else:
         files = get_version_diff_stats_registry(ecosystem, package, old, new)
 
     return files
+
+
+def get_git_sha_from_cargo_crate(package_path):
+    try:
+        with open(join(package_path, ".cargo_vcs_info.json"), "r") as f:
+            data = json.load(f)
+            return data["git"]["sha1"]
+    except:
+        return None
 
 
 def get_version_diff_stats_registry(ecosystem, package, old, new):
@@ -147,6 +175,8 @@ def get_version_diff_stats_registry(ecosystem, package, old, new):
         old_path = download_package_source(
             url, ecosystem, package, old, temp_dir_old.name
         )
+        if ecosystem == CARGO:
+            old_sha = get_git_sha_from_cargo_crate(ecosystem, old_path)
     else:
         return None
 
@@ -156,6 +186,8 @@ def get_version_diff_stats_registry(ecosystem, package, old, new):
         new_path = download_package_source(
             url, ecosystem, package, new, temp_dir_new.name
         )
+        if ecosystem == CARGO:
+            new_sha = get_git_sha_from_cargo_crate(ecosystem, new_path)
     else:
         return None
 
@@ -169,7 +201,11 @@ def get_version_diff_stats_registry(ecosystem, package, old, new):
     temp_dir_old.cleanup()
     temp_dir_new.cleanup()
 
-    return stats
+    output = {
+        "metadata_info": {"old_version_sha": old_sha, "new_version_sha": new_sha},
+        "diff": stats,
+    }
+    return output
 
 
 def get_maven_pacakge_url(package):
@@ -260,15 +296,26 @@ def download_package_source(url, ecosystem, package, version, dir_path):
         # do nothing
         return None
 
-    if (
-        ecosystem == COMPOSER
-        or ecosystem == NPM
-        or ecosystem == PYPI
-        or ecosystem == CARGO
-    ):
+    path = None
+    if ecosystem == COMPOSER or ecosystem == NPM or ecosystem == CARGO:
         files = os.listdir(dir_path)
         assert len(files) == 1
         path = "{}/{}".format(dir_path, files[0])
+    elif ecosystem == PIP:
+        files = os.listdir(dir_path)
+        if len(files) == 1:
+            # for tar.gz extractions
+            path = "{}/{}".format(dir_path, files[0])
+        else:
+            # assuming wheel file
+            distinfo = None
+            for f in files:
+                if f.endswith(".dist-info"):
+                    distinfo = f
+                    break
+            if distinfo:
+                shutil.rmtree(join(dir_path, distinfo), ignore_errors=True)
+                path = dir_path
     elif ecosystem == MAVEN:
         path = dir_path
     elif ecosystem == RUBYGEMS:
@@ -280,6 +327,7 @@ def download_package_source(url, ecosystem, package, version, dir_path):
     else:
         files = os.listdir(dir_path)
         sys.exit("check downloding regstiry tarball for:{}-{}".format(ecosystem, files))
+    assert path, "cannot extract {}-{}".format(ecosystem, package)
     return path
 
 
@@ -311,7 +359,11 @@ def get_package_version_source_url(ecosystem, package, version):
         data = data["releases"]
         data = {k[1:] if k.startswith("v") else k: v for k, v in data.items()}
         if version in data:
-            return data[version][-1]["url"]
+            data = data[version]
+            url = next(
+                (x["url"] for x in data if x["url"].endswith(".whl")), data[-1]["url"]
+            )
+            return url
     elif ecosystem == RUBYGEMS:
         return "https://rubygems.org/downloads/{}-{}.gem".format(package, version)
     elif ecosystem == MAVEN:
