@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "version-differ"
-version = "0.9.1"
+version = "0.10.0"
 description = "Accurate diffing between two versions of a package"
 authors = ["Nasif Imtiaz <nasifimtiaz88@gmail.com>"]
 license = "MIT"
