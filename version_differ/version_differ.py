@@ -29,6 +29,26 @@ RUBYGEMS = "RubyGems"
 ecosystems = [CARGO, COMPOSER, GO, MAVEN, NPM, NUGET, PYPI, RUBYGEMS]
 
 
+class VersionDifferOutput:
+    def __init__(self):
+        self.old_version = None
+        self.old_version_git_sha = None
+        self.new_version = None
+        self.new_version_git_sha = None
+        self.diff = None
+
+    def to_json(self):
+        return {
+            "metadata_info": {
+                "old_version": self.old_version,
+                "old_version_git_sha": self.old_version_git_sha,
+                "new_version": self.new_version,
+                "new_version_git_sha": self.new_version_git_sha,
+            },
+            "diff": self.diff,
+        }
+
+
 def sanitize_repo_url(repo_url):
     parsed_url = urlparse(repo_url)
     host = parsed_url.netloc
@@ -85,8 +105,11 @@ def get_go_module_path(package):
 
 
 def get_version_diff_stats_from_repository_tags(package, repo_url, old, new):
-    url = sanitize_repo_url(repo_url)
+    output = VersionDifferOutput()
+    output.old_version = old
+    output.new_version = new
 
+    url = sanitize_repo_url(repo_url)
     temp_dir = tempfile.TemporaryDirectory()
     repo = Repo.clone_from(url, temp_dir.name)
     tags = repo.tags
@@ -95,68 +118,62 @@ def get_version_diff_stats_from_repository_tags(package, repo_url, old, new):
     new_commit = get_commit_of_release(tags, package, new)
 
     if old_commit and new_commit:
-        files = get_diff_stats(temp_dir.name, old_commit, new_commit)
-        temp_dir.cleanup()
 
-        output = {
-            "metadata_info": {
-                "old_version_sha": old_commit,
-                "new_version_sha": new_commit,
-            },
-            "diff": files,
-        }
-        return output
+        output.old_version_git_sha = old_commit
+        output.new_version_git_sha = new_commit
+        output.diff = get_diff_stats(temp_dir.name, old_commit, new_commit)
+
+    temp_dir.cleanup()
+    return output
 
 
-def go_get_version_diff_stats(package, repo_url, old, new):
-    output = get_version_diff_stats_from_repository_tags(package, repo_url, old, new)
-
-    files = output["diff"]
+def filter_go_package_files(package, files):
     module_path = get_go_module_path(package)
     if module_path:
         files = {k: v for (k, v) in files.items() if k.startswith(module_path)}
-    output["diff"] = files
+    return files
 
-    return output
+
+def filter_nuget_package_files(package, files):
+    package = package.lower()
+    subpath = None
+    for file in files.keys():
+        file = file.lower().split("/")
+        if package in file:
+            subpath = package
+            break
+        else:
+            for path in file:
+                if package.endswith(path):
+                    temp = package[: -len(path)]
+                    if temp[-1] == ".":
+                        subpath = path
+                        break
+    if subpath:
+        files = dict(
+            filter(lambda x: subpath in x[0].lower().split("/"), files.items())
+        )
+
+    return files
 
 
 def get_version_diff_stats(ecosystem, package, old, new, repo_url=None):
     if ecosystem == GO:
         assert repo_url, "Repository URL required for Go packages"
-        files = go_get_version_diff_stats(package, repo_url, old, new)
+        output = get_version_diff_stats_from_repository_tags(
+            package, repo_url, old, new
+        )
+        output.diff = filter_go_package_files(package, output.diff)
     elif ecosystem == NUGET:
         assert repo_url, "Repository URL required for NuGet packages"
         output = get_version_diff_stats_from_repository_tags(
             package, repo_url, old, new
         )
-
-        # try to filter out NuGet repository files
-        files = output["diff"]
-        package = package.lower()
-        subpath = None
-        for file in files.keys():
-            file = file.lower().split("/")
-            if package in file:
-                subpath = package
-                break
-            else:
-                for path in file:
-                    if package.endswith(path):
-                        temp = package[: -len(path)]
-                        if temp[-1] == ".":
-                            subpath = path
-                            break
-        if subpath:
-            files = dict(
-                filter(lambda x: subpath in x[0].lower().split("/"), files.items())
-            )
-
-        output["diff"] = files
-        return output
+        output.diff = filter_nuget_package_files(package, output.diff)
     else:
-        files = get_version_diff_stats_registry(ecosystem, package, old, new)
+        output = get_version_diff_stats_registry(ecosystem, package, old, new)
 
-    return files
+    return output.to_json()
 
 
 def get_git_sha_from_cargo_crate(package_path):
@@ -169,7 +186,9 @@ def get_git_sha_from_cargo_crate(package_path):
 
 
 def get_version_diff_stats_registry(ecosystem, package, old, new):
-    old_sha = new_sha = None  # currently one cargo provides git sha
+    output = VersionDifferOutput()
+    output.old_version = old
+    output.new_version = new
 
     temp_dir_old = tempfile.TemporaryDirectory()
     url = get_package_version_source_url(ecosystem, package, old)
@@ -177,10 +196,11 @@ def get_version_diff_stats_registry(ecosystem, package, old, new):
         old_path = download_package_source(
             url, ecosystem, package, old, temp_dir_old.name
         )
+        # currently only cargo provides git sha
         if ecosystem == CARGO:
-            old_sha = get_git_sha_from_cargo_crate(old_path)
+            output.old_version_git_sha = get_git_sha_from_cargo_crate(old_path)
     else:
-        return None
+        return output
 
     temp_dir_new = tempfile.TemporaryDirectory()
     url = get_package_version_source_url(ecosystem, package, new)
@@ -188,25 +208,22 @@ def get_version_diff_stats_registry(ecosystem, package, old, new):
         new_path = download_package_source(
             url, ecosystem, package, new, temp_dir_new.name
         )
+        # currently only cargo provides git sha
         if ecosystem == CARGO:
-            new_sha = get_git_sha_from_cargo_crate(new_path)
+            output.new_version_git_sha = get_git_sha_from_cargo_crate(new_path)
     else:
-        return None
+        return output
 
     repo_old, oid_old = init_git_repo(old_path)
     repo_new, oid_new = init_git_repo(new_path)
 
     setup_remote(repo_old, new_path)
 
-    stats = get_diff_stats(old_path, oid_old, oid_new)
+    output.diff = get_diff_stats(old_path, oid_old, oid_new)
 
     temp_dir_old.cleanup()
     temp_dir_new.cleanup()
 
-    output = {
-        "metadata_info": {"old_version_sha": old_sha, "new_version_sha": new_sha},
-        "diff": stats,
-    }
     return output
 
 

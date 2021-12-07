@@ -74,35 +74,31 @@ def test_get_go_module_path():
 
 
 def test_go():
-    assert (
-        get_files_loc_stat(
-            go_get_version_diff_stats(
-                "github.com/labstack/echo/middleware",
-                "https://github.com/labstack/echo",
-                "4.1.17",
-                "4.2.0",
-            )
+    assert get_files_loc_stat(
+        get_version_diff_stats(
+            GO,
+            "github.com/labstack/echo/middleware",
+            "4.1.17",
+            "4.2.0",
+            "https://github.com/labstack/echo",
         )
-        == (27, 2461, 234)
-    )
+    ) == (27, 2461, 234)
 
-    assert (
-        get_files_loc_stat(
-            go_get_version_diff_stats(
-                "github.com/crewjam/saml",
-                "https://github.com/crewjam/saml",
-                "0.4.2",
-                "0.4.3",
-            )
+    assert get_files_loc_stat(
+        get_version_diff_stats(
+            GO,
+            "github.com/crewjam/saml",
+            "0.4.2",
+            "0.4.3",
+            "https://github.com/crewjam/saml",
         )
-        == (10, 179, 13)
-    )
+    ) == (10, 179, 13)
 
 
 def get_sha_stat(output):
     return (
-        output["metadata_info"]["old_version_sha"],
-        output["metadata_info"]["new_version_sha"],
+        output["metadata_info"]["old_version_git_sha"],
+        output["metadata_info"]["new_version_git_sha"],
     )
 
 
@@ -264,4 +260,4 @@ def test_sanitize_repo_url():
 
 
 # def test_temp():
-#     print(get_version_diff_stats(PIP, 'tensorflow', '2.3.0', '2.3.1'))
+#     print(get_version_diff_stats(PIP, "django", "1.8.13", "1.8.14"))
